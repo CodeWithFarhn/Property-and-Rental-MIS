@@ -1,9 +1,9 @@
-"""
-tenants/views.py — thin controllers
-"""
+"""tenants/views.py"""
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views import View
 from django.http import HttpResponse
+from django.utils.decorators import method_decorator
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.contrib import messages
 
@@ -15,20 +15,17 @@ from leases.services import get_active_lease
 from tenants.services import calculate_outstanding_balance
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantListView(View):
-    @role_required('ADMIN', 'MANAGER')
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def get(self, request):
         status = request.GET.get('status', 'ACTIVE')
         q      = request.GET.get('q', '').strip()
-        tenants = Tenant.objects.filter(status=status).select_related('leases__unit__property')
+        tenants = Tenant.objects.filter(status=status).prefetch_related('leases__unit__property')
         if q:
             tenants = tenants.filter(
                 Q(full_name__icontains=q) | Q(cnic__icontains=q) | Q(phone__icontains=q)
             )
-        # Annotate outstanding balance
         for t in tenants:
             t.outstanding = calculate_outstanding_balance(t)
         if request.headers.get('HX-Request'):
@@ -36,16 +33,16 @@ class TenantListView(View):
         return render(request, 'tenants/tenant_list.html', {'tenants': tenants, 'status': status})
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantListPartialView(View):
     def get(self, request):
-        return TenantListView().get(request)
+        return TenantListView.as_view()(request)
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantCreateView(View):
-    @role_required('ADMIN', 'MANAGER')
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def get(self, request):
         form = TenantAdmissionForm()
         return render(request, 'tenants/tenant_add.html', {'form': form})
@@ -63,22 +60,20 @@ class TenantCreateView(View):
                 return redirect('tenants:detail', pk=tenant.pk)
             except Exception as e:
                 form.add_error(None, str(e))
-        return render(request, 'tenants/tenant_add.html', {'form': form}, status=422)
+        return render(request, 'tenants/tenant_add.html', {'form': form})
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantDetailView(View):
-    @role_required('ADMIN', 'MANAGER')
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def get(self, request, pk):
+        from django.utils import timezone
         tenant = get_object_or_404(Tenant, pk=pk)
         active_lease = get_active_lease(tenant.id)
         outstanding = calculate_outstanding_balance(tenant)
-        invoices = tenant.leases.prefetch_related('invoices__payments').first()
         all_invoices = []
         all_payments = []
-        for lease in tenant.leases.all():
+        for lease in tenant.leases.prefetch_related('invoices__payments').all():
             for inv in lease.invoices.all():
                 all_invoices.append(inv)
                 for pay in inv.payments.all():
@@ -89,14 +84,13 @@ class TenantDetailView(View):
             'outstanding': outstanding,
             'invoices': all_invoices,
             'payments': all_payments,
+            'today': timezone.localdate(),
         })
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantEditModalView(View):
-    @role_required('ADMIN', 'MANAGER')
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def get(self, request, pk):
         tenant = get_object_or_404(Tenant, pk=pk)
         form = TenantEditForm(instance=tenant)
@@ -113,19 +107,17 @@ class TenantEditModalView(View):
         return render(request, 'tenants/partials/tenant_edit_modal.html', {'form': form, 'tenant': tenant}, status=422)
 
 
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class TenantDeactivateView(View):
-    @role_required('ADMIN', 'MANAGER')
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
     def post(self, request, pk):
         services.terminate_tenant(tenant_id=pk)
-        messages.success(request, 'Tenant has been deactivated and unit is now vacant.')
+        messages.success(request, 'Tenant deactivated. Unit is now vacant.')
         return redirect('tenants:list')
 
 
+@method_decorator(login_required, name='dispatch')
 class CnicCheckView(View):
-    """HTMX endpoint: returns inline error or green checkmark for CNIC field."""
     def get(self, request):
         cnic = request.GET.get('cnic', '').strip()
         try:
