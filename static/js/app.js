@@ -14,6 +14,22 @@ function closeModal() {
   window.dispatchEvent(new CustomEvent('mis:close-modal'));
 }
 
+function modalComponent() {
+  return {
+    open: false,
+    openModal() {
+      openModal();
+    },
+    closeModal() {
+      closeModal();
+    },
+  };
+}
+
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.modalComponent = modalComponent;
+
 // ── Toast Component ─────────────────────────────────────────────────────────
 function toastManager() {
   return {

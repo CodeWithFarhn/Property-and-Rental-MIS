@@ -1,1 +1,0 @@
-export default function NewLease() { return <div>NewLease</div>; }
