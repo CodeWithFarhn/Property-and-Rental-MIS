@@ -1,4 +1,6 @@
 {% load tenant_filters %}
+{% if invoices %}
+<div class="table-responsive">
 <table class="table table-hover table-sm mb-0" id="invoice-table">
   <thead>
     <tr>
@@ -48,18 +50,18 @@
         {% endif %}
       </td>
     </tr>
-    {% empty %}
-    <tr>
-      <td colspan="9" class="text-center py-4 text-muted">
-        <i class="fas fa-file-invoice fa-2x mb-2 d-block"></i>
-        No invoices found.
-        {% if not request.GET.status %}
-          <a href="#" hx-get="{% url 'finance:invoice_add' %}" hx-target="#modal-body" id="first-invoice-link">
-            Generate your first invoice
-          </a>.
-        {% endif %}
-      </td>
-    </tr>
     {% endfor %}
   </tbody>
 </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+  <i class="fas fa-file-invoice fa-3x mb-3 d-block" style="opacity:0.3;"></i>
+  <p class="mb-1">No invoices found.</p>
+  {% if not request.GET.status %}
+    <a href="#" class="btn btn-sm btn-outline-primary mt-2" hx-get="{% url 'finance:invoice_add' %}" hx-target="#modal-body" id="first-invoice-link">
+      Generate your first invoice
+    </a>
+  {% endif %}
+</div>
+{% endif %}
