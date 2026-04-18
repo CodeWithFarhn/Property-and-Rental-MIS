@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}Record Payment{% endblock %}
+{% block page_title %}Record Payment{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">Finance</li>
+<li class="breadcrumb-item active">Record Payment</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+
+  <!-- ── Left: Payment Form ────────────────────────────────────────────── -->
+  <div class="col-md-7">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header" style="background:linear-gradient(135deg,#375623,#2E75B6);">
+        <h3 class="card-title text-white"><i class="fas fa-money-bill-wave mr-2"></i>Payment Details</h3>
+      </div>
+      <div class="card-body">
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <form method="post" action="{% url 'finance:payment_new' %}" id="payment-form">
+          {% csrf_token %}
+
+          <!-- Tenant Live Search -->
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">Search Tenant</label>
+            <div class="position-relative">
+              <input type="text" class="form-control" id="tenant-search-input"
+                     placeholder="Type 3+ characters to search…"
+                     hx-get="{% url 'finance:tenant_search' %}"
+                     hx-trigger="keyup changed delay:300ms"
+                     hx-target="#tenant-search-results"
+                     hx-include="[name=q]"
+                     name="q"
+                     autocomplete="off" />
+              <div id="tenant-search-results"
+                   class="position-absolute bg-white border rounded shadow-sm w-100"
+                   style="z-index:999;max-height:200px;overflow-y:auto;top:100%;left:0;display:none;">
+              </div>
+            </div>
+            <input type="hidden" id="selected-tenant-id" name="tenant_id" />
+          </div>
+
+          <!-- Invoice Select -->
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">
+              Invoice <span class="text-danger">*</span>
+            </label>
+            {{ form.invoice }}
+            {% if form.invoice.errors %}<small class="text-danger">{{ form.invoice.errors.0 }}</small>{% endif %}
+          </div>
+
+          <!-- Amount -->
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Amount (PKR) <span class="text-danger">*</span></label>
+              {{ form.amount_paid }}
+              {% if form.amount_paid.errors %}<small class="text-danger">{{ form.amount_paid.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Date <span class="text-danger">*</span></label>
+              {{ form.date_paid }}
+              {% if form.date_paid.errors %}<small class="text-danger">{{ form.date_paid.errors.0 }}</small>{% endif %}
+            </div>
+          </div>
+
+          <!-- Method + Reference -->
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Payment Method <span class="text-danger">*</span></label>
+              {{ form.payment_method }}
+            </div>
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Reference / Transaction ID</label>
+              {{ form.reference_code }}
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">Notes</label>
+            {{ form.notes }}
+          </div>
+
+          <div class="d-flex justify-content-between mt-3">
+            <a href="{% url 'finance:payment_list' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-left mr-1"></i> Back
+            </a>
+            <button type="submit" class="btn btn-success" id="record-payment-submit">
+              <i class="fas fa-check mr-1"></i> Record Payment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right: Tenant Summary Panel (HTMX-loaded) ─────────────────────── -->
+  <div class="col-md-5">
+    <div class="card card-outline card-secondary shadow-sm">
+      <div class="card-header">
+        <h3 class="card-title text-navy"><i class="fas fa-user mr-2"></i>Tenant Summary</h3>
+      </div>
+      <div class="card-body p-0" id="tenant-summary-panel">
+        <div class="p-3 text-muted text-center" style="font-size:13px;">
+          <i class="fas fa-search fa-lg mb-2 d-block"></i>
+          Search and select a tenant to see their balance and open invoices.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Show/hide tenant search dropdown
+  document.getElementById('tenant-search-input').addEventListener('htmx:afterSwap', function() {
+    document.getElementById('tenant-search-results').style.display = 'block';
+  });
+  document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target.id === 'tenant-search-results') {
+      e.detail.target.style.display = e.detail.target.innerHTML.trim() ? 'block' : 'none';
+    }
+  });
+  // Select tenant from dropdown
+  document.body.addEventListener('click', function(e) {
+    var item = e.target.closest('[data-tenant-id]');
+    if (item) {
+      document.getElementById('selected-tenant-id').value = item.dataset.tenantId;
+      document.getElementById('tenant-search-input').value = item.dataset.tenantName;
+      document.getElementById('tenant-search-results').style.display = 'none';
+      // Load summary panel
+      htmx.ajax('GET', '{% url "finance:tenant_summary" %}?tenant=' + item.dataset.tenantId, {target: '#tenant-summary-panel'});
+    }
+  });
+</script>
+{% endblock %}

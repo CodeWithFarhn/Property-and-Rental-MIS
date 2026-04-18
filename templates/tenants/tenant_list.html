@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% load tenant_filters %}
+
+{% block title %}Tenants{% endblock %}
+{% block page_title %}Tenants{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Tenants</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary shadow-sm">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title text-navy"><i class="fas fa-users mr-2"></i>Tenants</h3>
+    <div class="card-tools ml-auto">
+      <a href="{% url 'tenants:add' %}" class="btn btn-primary btn-sm" id="add-tenant-btn">
+        <i class="fas fa-user-plus mr-1"></i> Add Tenant
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <!-- Filter Tabs + Search -->
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+      <ul class="nav nav-pills nav-sm" id="status-tabs">
+        <li class="nav-item">
+          <a class="nav-link {% if status == 'ACTIVE' %}active bg-steel{% endif %}"
+             href="?status=ACTIVE" id="tab-active">Active</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if status == 'INACTIVE' %}active{% endif %}"
+             href="?status=INACTIVE" id="tab-inactive">Inactive</a>
+        </li>
+      </ul>
+      <div class="input-group" style="max-width:300px;"
+           hx-get="{% url 'tenants:list_partial' %}?status={{ status }}"
+           hx-trigger="keyup changed delay:300ms from:#tenant-search"
+           hx-target="#tenant-table-container"
+           hx-include="#tenant-search">
+        <input type="text" class="form-control form-control-sm" id="tenant-search"
+               name="q" placeholder="Search name, CNIC, phone…" value="{{ request.GET.q }}" />
+        <div class="input-group-append">
+          <span class="input-group-text"><i class="fas fa-search"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tenant Table (HTMX swap target) -->
+    <div id="tenant-table-container">
+      {% include 'tenants/partials/tenant_table.html' %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function () {
+    // DataTable initialized on the static table — HTMX replaces the container
+    // so we re-init on every swap.
+    function initTable() {
+      if ($.fn.DataTable.isDataTable('#tenant-table')) {
+        $('#tenant-table').DataTable().destroy();
+      }
+      $('#tenant-table').DataTable({
+        paging: false, searching: false, info: false, ordering: true,
+        dom: 'Brt',
+        buttons: ['csv', 'excel', 'print'],
+        columnDefs: [{ orderable: false, targets: [-1] }],
+      });
+    }
+    initTable();
+    document.body.addEventListener('htmx:afterSwap', function(e) {
+      if (e.detail.target.id === 'tenant-table-container') initTable();
+    });
+  });
+</script>
+{% endblock %}

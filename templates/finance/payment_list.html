@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Payment Ledger{% endblock %}
+{% block page_title %}Payment Ledger{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">Finance</li>
+<li class="breadcrumb-item active">Payments</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary shadow-sm">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title text-navy"><i class="fas fa-receipt mr-2"></i>All Payments</h3>
+    <div class="card-tools ml-auto">
+      <a href="{% url 'finance:payment_new' %}" class="btn btn-success btn-sm" id="new-payment-btn">
+        <i class="fas fa-plus mr-1"></i> Record Payment
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0" id="payment-list-container">
+    {% include 'finance/partials/payment_list_table.html' %}
+  </div>
+</div>
+{% endblock %}

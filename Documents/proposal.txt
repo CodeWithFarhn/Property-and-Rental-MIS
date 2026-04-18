@@ -1,0 +1,673 @@
+--- Documents/rental_mis_proposal.docx ---
+CSC-458  ·  Management Information Systems
+Rental Property
+Management Information System
+Project Proposal & Development Plan
+Bahria University, Karachi Campus
+Due: 22 April 2026  ·  Group of 3
+1. Project Overview
+This document is the complete development plan for a Rental Property Management Information System (MIS) built as the CSC-458 group assignment. It covers the system scope, technology stack, database schema, user roles, feature set, and a three-phase build plan with explicit testing checkpoints between each phase.
+1.1 Problem Statement
+Property managers and landlords in Pakistan typically rely on manual methods — paper ledgers, spreadsheets, and WhatsApp — to track rent payments, tenant agreements, and property vacancies. This leads to:
+Missed or unrecorded payments and no audit trail
+Duplicate invoicing and manual reconciliation errors
+No proactive alert system for overdue rent or expiring leases
+Data loss risk with no centralised, backed-up system
+No role separation — caretakers, owners, and managers all share the same information channel
+1.2 Proposed Solution
+A web-based MIS that centralises property management operations across four user roles, automates financial calculations, and eliminates manual reconciliation. The system will be accessible from any browser with no installation required.
+1.3 Technology Stack
+Layer
+Technology
+Rationale
+Backend Framework
+Django 5.x (Python)
+Built-in ORM, atomic transactions, auth system, admin scaffolding
+Database
+MySQL via XAMPP
+Familiar from course, easy local setup, robust for relational data
+Frontend
+Django Templates + Bootstrap 5
+Server-rendered, no separate build process, familiar HTML/CSS
+Interactivity
+HTMX + Alpine.js
+AJAX without writing JavaScript — modal forms, live balance updates, real-time feedback
+UI Theme
+AdminLTE 3 (free)
+Pre-built admin dashboard theme, responsive, professional appearance
+PDF Generation
+WeasyPrint
+Generates PDFs from Django templates — free and open source
+Authentication
+Django built-in + custom user model
+Session-based auth, bcrypt hashing by default, no third-party service needed
+Email (dev)
+Django email backend + Gmail SMTP
+Free. In development, emails logged to console. Gmail SMTP for demo.
+SMS (simulated)
+Logged to DB (not sent)
+No cost. SMS content stored in notifications table — marks the feature as built without a paid gateway
+1.4 Cost
+Zero. Every component listed above is free and open-source. No paid APIs, no SMS gateway charges, no cloud hosting required for the assignment submission. The system runs entirely on localhost via XAMPP + Django dev server.
+2. User Roles & Permissions
+Five roles are defined. Each role has a different dashboard view and access scope enforced by Django's permission system and middleware.
+Role
+Access Scope
+Key Capabilities
+Admin
+Full system access
+Manage users, all properties, all tenants, system settings, view all reports
+Property Manager
+All operational features
+Add/edit properties & units, onboard tenants, create invoices, record payments, manage maintenance
+Staff / Caretaker
+Restricted operations
+Record payments, update maintenance ticket status. Cannot delete records, manage users, or view financial reports
+Property Owner
+Read-only for own portfolio
+View occupancy, revenue KPIs, and balance reports for their own properties only. Cannot edit any data
+Tenant
+Own data only
+View rent balance, download receipts, view lease details, submit maintenance requests. Cannot see other tenants
+3. Database Schema
+The following entities form the core data model. All models are implemented as Django ORM models. Primary keys are auto-increment integers unless stated otherwise.
+CustomUser
+Extends Django AbstractUser. Adds role field for RBAC.
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+username / email
+CharField
+Login credential (email format). Unique.
+password
+CharField
+bcrypt hash — Django handles this automatically
+role
+CharField
+Choices: ADMIN, MANAGER, STAFF, OWNER, TENANT
+full_name
+CharField
+Display name
+phone
+CharField
+Optional. Used for SMS notification log
+is_active
+BooleanField
+Soft-disable accounts without deleting
+Property
+A building or address that contains one or more units.
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+name
+CharField
+Property name e.g. 'Al-Noor Apartments'
+address
+TextField
+Full street address
+location
+FK → Location
+Standardised area/neighbourhood
+owner
+FK → CustomUser
+Owner role user. Used to filter Owner dashboard
+created_at
+DateTimeField
+Auto-set on creation
+Unit
+A single rentable unit within a Property (e.g., Flat 3A).
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+property
+FK → Property
+Parent property. CASCADE on delete.
+unit_number
+CharField
+e.g. 'A1', '3rd Floor', 'Shop-2'. Unique per property.
+unit_type
+CharField
+Choices: APARTMENT, SHOP, STUDIO, HOUSE, OTHER
+bedrooms
+IntegerField
+Number of bedrooms. 0 for shops/studios.
+monthly_rent
+DecimalField
+Standard rent amount in PKR
+status
+CharField
+Choices: VACANT, OCCUPIED, MAINTENANCE
+Tenant
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+user
+OneToOne → CustomUser
+Links to login account. Nullable (not all tenants log in).
+full_name
+CharField
+Full legal name
+email
+EmailField
+Contact email
+phone
+CharField
+Stored in +92 international format
+cnic
+CharField
+13-digit Pakistani CNIC. Unique.
+profession
+CharField
+Occupation — creditworthiness reference
+emergency_contact
+CharField
+Name and phone of emergency contact
+account_balance
+DecimalField
+Running credit/debit. Positive = credit (overpaid). Negative = debt.
+status
+CharField
+Choices: ACTIVE, INACTIVE. Soft-delete via INACTIVE — record never deleted.
+id_document
+FileField
+Uploaded CNIC/passport scan
+created_at
+DateTimeField
+Date of admission
+Lease
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+tenant
+FK → Tenant
+Lessee
+unit
+FK → Unit
+Leased unit. Status set to OCCUPIED on lease creation.
+start_date
+DateField
+Lease commencement date
+end_date
+DateField
+Lease expiry date. Null = month-to-month.
+monthly_rent
+DecimalField
+Rent agreed in this lease (may differ from unit default)
+deposit_amount
+DecimalField
+Security deposit amount
+deposit_paid
+BooleanField
+Whether deposit has been received
+is_active
+BooleanField
+Only one active lease per unit at a time
+notes
+TextField
+Special terms or conditions
+Invoice
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+invoice_number
+CharField
+Auto-generated: INV-YYYYMMDD-HHMMSS. Unique.
+lease
+FK → Lease
+The lease this invoice belongs to
+period_month
+DateField
+The billing month (stored as first day of month). Unique per lease per month.
+amount_due
+DecimalField
+Amount after applying account credit balance
+due_date
+DateField
+Payment deadline
+status
+CharField
+Choices: UNPAID, PARTIAL, PAID
+notes
+TextField
+Admin comment e.g. 'March 2026 rent'
+created_at
+DateTimeField
+Invoice generation timestamp
+Payment
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+invoice
+FK → Invoice
+Invoice being paid against
+amount_paid
+DecimalField
+Actual amount received in this transaction
+payment_method
+CharField
+Choices: CASH, BANK_TRANSFER, EASYPAISA, JAZZCASH, CHEQUE
+reference_code
+CharField
+Transaction ID / receipt number. Optional.
+recorded_by
+FK → CustomUser
+Staff member who recorded this payment
+date_paid
+DateField
+Actual date payment was received
+notes
+TextField
+Optional remarks
+MaintenanceTicket
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+unit
+FK → Unit
+Unit that needs repair
+reported_by
+FK → CustomUser
+Tenant or manager who filed the ticket
+assigned_to
+FK → CustomUser
+Staff/caretaker assigned. Nullable.
+title
+CharField
+Short description e.g. 'Water leakage in kitchen'
+description
+TextField
+Full details of the issue
+urgency
+CharField
+Choices: LOW, MEDIUM, HIGH, CRITICAL
+status
+CharField
+Choices: OPEN, IN_PROGRESS, RESOLVED, CLOSED
+cost
+DecimalField
+Repair cost logged on resolution. Nullable.
+created_at
+DateTimeField
+Ticket creation timestamp
+resolved_at
+DateTimeField
+Resolution timestamp. Nullable.
+AuditLog
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+actor
+FK → CustomUser
+Who performed the action. SET_NULL on user delete.
+action
+CharField
+e.g. 'TENANT_ADMITTED', 'PAYMENT_RECORDED', 'INVOICE_CREATED'
+description
+TextField
+Human-readable log entry
+timestamp
+DateTimeField
+Auto-set. Never editable.
+seen
+BooleanField
+Unseen logs shown as dashboard notification badges
+Notification (SMS Log)
+Field
+Type
+Notes
+id
+AutoField (PK)
+Auto-increment primary key
+recipient
+FK → CustomUser
+Intended recipient
+channel
+CharField
+Choices: EMAIL, SMS
+subject
+CharField
+Email subject or SMS event type
+body
+TextField
+Full message content
+status
+CharField
+Choices: SENT, SIMULATED, FAILED. SMS always SIMULATED in dev.
+sent_at
+DateTimeField
+Timestamp of send attempt
+4. Core Financial Formula
+The outstanding balance calculation is the most important business logic in the system. It is defined as:
+B  =  ( P  ×  M )  −  ΣR
+Symbol
+Variable
+Definition
+B
+Outstanding Balance
+The total amount the tenant owes as of today (PKR)
+P
+Monthly Rent Price
+The agreed monthly rent from the active Lease record (PKR)
+M
+Months Since Move-In
+Number of complete months elapsed since lease start_date
+ΣR
+Sum of All Payments
+Total of all Payment.amount_paid records linked to this tenant's invoices
+This formula is computed live in the tenant list view and the payment entry form using a Django annotated queryset. It is also the basis of the Rental Balances Report and the outstanding balance KPI card on the dashboard.
+5. Three-Phase Development Plan
+Each phase ends with a defined testing checkpoint. The next phase must not begin until the current phase passes its checkpoint. This ensures the system is always in a demonstrable state.
+Phase 1  ·  Days 1–3
+Core MVP — Working System
+Goal: A fully functional system where a manager can register properties and units, onboard a tenant with a lease, generate an invoice, record a payment, and see the outstanding balance update correctly. Authentication and RBAC are fully implemented.
+Phase 1 Features
+F1.1 — Custom User Model & Authentication
+Extend AbstractUser with role field (ADMIN, MANAGER, STAFF, OWNER, TENANT)
+Login page with session-based auth and bcrypt password hashing (Django default)
+Session timeout middleware — auto-logout after 30 minutes of inactivity
+Role middleware — redirects each role to its correct dashboard on login
+All views protected by @login_required and a custom @role_required decorator
+F1.2 — Location & Property Management
+Location model: predefined list of Karachi areas as admin-managed dropdown values
+Property CRUD: name, address, location, owner assignment
+Unit CRUD: unit_number, type, bedrooms, monthly_rent, status (VACANT/OCCUPIED/MAINTENANCE)
+Unit availability filter: only VACANT units shown in tenant assignment dropdown
+Unit status auto-updates: OCCUPIED on lease creation, VACANT on lease termination
+F1.3 — Tenant Registration (with Atomic Transaction)
+Tenant form: full_name, email, phone, CNIC, profession, emergency contact, ID document upload
+Unit assignment dropdown (VACANT only)
+Lease creation form: start_date, end_date (optional), monthly_rent, deposit details
+All three operations (Tenant insert, Lease insert, Unit status update) wrapped in a single Django atomic transaction block — full rollback on any failure
+Soft-delete: tenant exit sets status=INACTIVE, lease is_active=False, unit reverts to VACANT (atomic)
+F1.4 — Invoice Generation
+Generate monthly invoice per active lease
+Duplicate prevention: unique constraint on (lease, period_month) — one invoice per month per tenant
+Auto-apply account credit: if tenant.account_balance > 0, deduct from amount_due before saving
+If credit fully covers the invoice, set status=PAID immediately
+Invoice number auto-generated: INV-YYYYMMDD-HHMMSS
+F1.5 — Payment Recording
+Payment form with tenant dropdown (shows tenants with UNPAID/PARTIAL invoices only)
+HTMX live fetch: selecting a tenant loads their current balance, monthly rate, and invoice details without page reload
+Supports partial payments — multiple payments against one invoice, balance recalculated each time
+Payment methods: Cash, Bank Transfer, EasyPaisa, JazzCash, Cheque
+reference_code field for transaction ID or receipt number
+On payment save: update invoice.amount_due, update invoice.status, update tenant.account_balance — all atomic
+F1.6 — Outstanding Balance Auto-Calculation
+Balance computed using B = (P x M) - SR formula in Django queryset annotation
+Displayed live in tenant list, payment form, and tenant detail view
+Correctly handles partial payments, overpayments, and month boundaries
+F1.7 — Role-Specific Dashboards
+Admin/Manager dashboard: total units, occupied units, vacant units, total rent collected this month, overdue balances, recent activity
+Owner dashboard: same KPIs filtered to their own properties only
+Staff dashboard: simplified view — just today's payments and open maintenance tickets
+All KPI cards are dynamic — computed from DB, not hardcoded
+Phase 1 Testing Checkpoint  —  Do Not Proceed Until All Pass
+#
+Test Case
+Expected Result
+1
+Log in as each of the 5 roles (create test accounts)
+Each role lands on its own dashboard with correct menu items only
+2
+Add a property with 3 units. Verify units show as VACANT.
+All 3 units appear in system with status VACANT
+3
+Register a tenant and assign to Unit A. Check Unit A status.
+Unit A status changes to OCCUPIED. Unit A disappears from available dropdown.
+4
+Attempt to create a second lease for the same unit while Unit A is OCCUPIED.
+System blocks it — Unit A not shown in dropdown
+5
+Generate an invoice for the tenant. Generate again for same month.
+First invoice created. Second attempt rejected with duplicate error.
+6
+Record a partial payment (e.g. 60% of invoice amount).
+Invoice status = PARTIAL. Outstanding balance reduces correctly.
+7
+Record the remaining 40% payment.
+Invoice status = PAID. Outstanding balance = 0.
+8
+Deactivate (soft-delete) the tenant.
+Tenant disappears from active list. Unit reverts to VACANT. All payment history still visible in DB.
+9
+Simulate a failed atomic transaction (disconnect DB mid-tenant-create).
+No partial data committed — tenant, lease, and unit status all roll back together
+10
+Log in as Staff. Attempt to access user management URL directly.
+403 Forbidden — role_required decorator blocks access
+Phase 2  ·  Days 4–5
+Automation Layer — Professional System
+Goal: Add the features that separate a basic tracker from a professional system — PDF generation, notifications, audit trail, maintenance ticketing, and financial reporting. Phase 1 must fully pass its checkpoint before starting Phase 2.
+Phase 2 Features
+F2.1 — PDF Receipt & Invoice Generation
+WeasyPrint installed. Django view renders a dedicated HTML template and returns it as a PDF download response
+Payment receipt PDF: tenant name, unit, lease period, amount paid, payment method, reference code, date, system branding
+Monthly invoice PDF: invoice number, period, amount due, due date, tenant details
+Download button on payment confirmation page and invoice list
+F2.2 — Email Notifications
+Django email backend configured. In development: EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' (printed to terminal, no SMTP needed)
+For demo: switch to Gmail SMTP with an app password
+Trigger 1 — Invoice created: email tenant with invoice details and due date
+Trigger 2 — Payment recorded: email tenant with receipt summary and remaining balance
+Trigger 3 — Lease expiry warning: daily management command checks for leases expiring within 30 days and emails manager
+All emails also saved to Notification model with channel=EMAIL, status=SENT
+F2.3 — SMS Notifications (Simulated)
+SMS function takes (phone_number, message) and saves to Notification model with channel=SMS, status=SIMULATED
+No external API called — zero cost
+Trigger events: tenant admission welcome, invoice creation, payment confirmation
+SMS log viewable in admin panel — shows exactly what would have been sent
+F2.4 — Audit Trail
+AuditLog model created. Helper function log_action(actor, action_code, description) called after every significant operation
+Logged events: tenant admitted, lease created, invoice generated, payment recorded, user created, unit status changed, maintenance ticket updated
+Dashboard: last 10 audit entries shown in a live-updating panel
+Unseen entries (seen=False) shown as notification badge count in navbar
+HTMX: clicking 'mark as seen' updates seen=True without page reload
+F2.5 — Maintenance Request System
+Tenant portal: submit ticket form with title, description, urgency level, optional photo upload
+Manager view: list of all open tickets, assignee dropdown (Staff users only), status update
+Staff view: tickets assigned to them — can update status to IN_PROGRESS or RESOLVED
+Cost field unlocked when status = RESOLVED — manager logs repair cost
+Unit set to MAINTENANCE status when a CRITICAL ticket is opened. Cleared on ticket CLOSED.
+F2.6 — Financial Reports
+Monthly Payments Report: filter by month, shows all payments with tenant, unit, invoice ref, amount. Total at footer. Print button opens print-formatted view.
+Outstanding Balances Report: all active tenants with monthly rate, months payable, total paid, outstanding balance, last payment date
+Both reports exportable via DataTables Buttons (CSV, Excel, PDF, Print)
+Owner-filtered versions: same reports but scoped to Owner's properties only
+F2.7 — System Settings
+Single-record settings model: organisation name, contact email, phone, currency symbol, late fee percentage, grace period days
+Logo upload — displayed in PDF headers and dashboard
+Settings loaded into request context via context processor — available in all templates
+Phase 2 Testing Checkpoint  —  Do Not Proceed Until All Pass
+#
+Test Case
+Expected Result
+1
+Record a payment. Click 'Download Receipt'.
+PDF downloaded with correct tenant name, amount, date, and reference code
+2
+Generate an invoice. Check Django console output.
+Email content printed to terminal showing invoice details and due date
+3
+Admit a new tenant. Check Notification table.
+SMS row inserted with channel=SMS, status=SIMULATED, correct message body
+4
+Record a payment. Check Audit Log.
+New AuditLog row with actor, PAYMENT_RECORDED action, and description
+5
+Log in as Tenant. Submit a maintenance ticket.
+Ticket appears in Manager's open ticket list with correct urgency and unit
+6
+Log in as Staff. Assign and update ticket to RESOLVED. Enter a cost.
+Ticket status = RESOLVED. Cost saved. resolved_at timestamp set.
+7
+Generate Monthly Payments Report for current month.
+All payments from this month listed. Total correct. Export to CSV works.
+8
+Generate Outstanding Balances Report.
+All active tenants shown with correct balance using the B=(PxM)-SR formula
+9
+Log in as Owner. Check reports.
+Only properties owned by this Owner shown in reports. Other properties invisible.
+10
+Update system settings: change organisation name and upload logo.
+New name and logo appear in dashboard header and in PDF receipt header
+Phase 3  ·  Days 6–7
+Polish & Tenant Portal
+Goal: Add the tenant self-service portal, document vault, and occupancy chart. Final polish pass on UI. Reserve time for IEEE report writing — do not spend more than one day on Phase 3 features if report is not drafted.
+Phase 3 Features
+F3.1 — Tenant Self-Service Portal
+Separate login flow for Tenant-role users. Redirects to /tenant/dashboard/ not /admin/.
+Tenant dashboard: current balance, active lease details (unit, rent, start/end date), last payment date
+Payment history: chronological list of all payments with downloadable PDF receipt per payment
+Maintenance requests: view submitted tickets and their current status
+Tenant cannot see other tenants' data — all querysets filtered by request.user
+F3.2 — Document Vault
+Upload and manage documents per tenant: CNIC, rental agreement, NOC, reference letters
+Each document has: document_type, file, upload_date, expiry_date (optional)
+Dashboard warning card: documents expiring within 30 days flagged in amber
+Manager can download any document from the tenant detail page
+F3.3 — Occupancy Trend Chart
+Line or bar chart on Admin/Manager dashboard showing monthly occupancy rate over the past 6 months
+Rendered using Chart.js (CDN, free). Data computed server-side and passed as JSON to template.
+Owner dashboard shows the same chart filtered to their properties
+F3.4 — UI Polish
+AdminLTE theme fully applied across all pages — consistent sidebar, navbar, breadcrumbs
+All HTMX interactions have loading indicators (spinner during fetch)
+All forms have client-side validation (HTML5 + Alpine.js) before server submission
+Mobile responsiveness verified on phone screen width
+Empty state messages for all list pages (e.g. 'No tenants yet — add your first tenant')
+Phase 3 Testing Checkpoint  —  Final System Verification
+#
+Test Case
+Expected Result
+1
+Log in as Tenant. View balance, lease, payment history.
+Correct data shown. No other tenant's data accessible.
+2
+Tenant downloads a receipt from portal.
+PDF receipt downloads correctly with their payment details
+3
+Tenant submits maintenance request from portal.
+Ticket appears in Manager list. Tenant can see its status in their portal.
+4
+Upload a CNIC document with expiry date 20 days from now.
+Document appears in vault. Expiry warning visible on dashboard.
+5
+Check occupancy chart on dashboard.
+Chart renders with real data for past 6 months
+6
+Full end-to-end flow: new property → unit → tenant → lease → invoice → payment → receipt download.
+All steps complete without error. Receipt PDF accurate.
+7
+Open system on a mobile screen (or Chrome dev tools mobile mode).
+Layout is responsive. No horizontal overflow. Sidebar collapses correctly.
+6. Django Project Structure
+Recommended Django app structure. One app per domain — keeps models, views, and templates organised and independently testable.
+App / File
+Responsibility
+rental_mis/
+Django project root — settings, urls, wsgi
+accounts/
+CustomUser model, login/logout views, role middleware, @role_required decorator
+properties/
+Property, Unit, Location models and CRUD views
+tenants/
+Tenant model, registration views, soft-delete, lease creation, atomic transaction logic
+leases/
+Lease model, lease template, expiry alert management command
+finance/
+Invoice and Payment models, balance formula, report views, PDF generation
+maintenance/
+MaintenanceTicket model, ticket CRUD, status update views
+notifications/
+Notification model, email send helpers, SMS simulation logger
+audit/
+AuditLog model, log_action() helper used across all apps
+dashboard/
+Role-aware dashboard views, KPI computation, chart data endpoint
+documents/
+(Phase 3) Document vault model and views
+tenant_portal/
+(Phase 3) Tenant-facing views — balance, receipts, maintenance, lease
+templates/
+Base template extending AdminLTE. Each app has its own subfolder.
+static/
+AdminLTE assets, HTMX, Alpine.js, Chart.js, custom CSS
+7. Suggested Work Split (Group of 3)
+Member
+Primary Responsibility
+Specific Tasks
+Member 1
+Backend Core
+CustomUser + RBAC, Property/Unit/Tenant models, Lease + atomic transactions, Invoice logic, balance formula, DB schema, ERD
+Member 2
+Finance & Reports
+Payment recording, PDF generation (WeasyPrint), financial reports, DataTables export, email notifications, audit log, system settings
+Member 3
+Frontend & Portals
+AdminLTE integration, HTMX modals, all templates, dashboard KPIs, maintenance module, tenant portal (Phase 3), Chart.js occupancy chart, DFD and IEEE report
+Note: Member 1 should complete the DB models and migrations first (Day 1 morning) before Members 2 and 3 begin their work — all other features depend on the schema being stable.
+8. Assignment Deliverables Checklist
+Deliverable
+Where It Comes From
+○
+Problem Statement
+Section 1.2 of this proposal
+○
+SRS Document — functional + non-functional requirements
+Derived from feature list in Sections 5
+○
+ERD / DB Schema
+Section 3 of this proposal — implement as a drawn diagram
+○
+DFD Level 0 (Context), Level 1, Level 2 for rent collection flow
+Draw based on the payment recording flow in Phase 1
+○
+Working Code / System
+Phase 1 minimum, Phase 2 target
+○
+IEEE Report (Title, Abstract, Intro, Experimental Details, Results, Conclusions, References)
+Written on Day 6–7 from screenshots + feature descriptions
+○
+Equation in report
+B = (P x M) - SR  — Section 4 of this proposal
+○
+Pictures / screenshots in report
+Screenshots of dashboard, tenant list, invoice, PDF receipt, reports
+○
+Graphs in report
+Occupancy rate chart, monthly revenue bar chart from system
+○
+Comparison table in report
+Feature comparison across 3 reference systems vs your MIS
+Start with the DB schema and CustomUser model on Day 1. Everything else builds on top of it.
+
+
+

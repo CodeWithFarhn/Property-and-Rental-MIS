@@ -1,0 +1,28 @@
+<!-- dashboard/partials/expiry_panel.html -->
+{% if expiring_leases %}
+<ul class="list-group list-group-flush">
+  {% for lease in expiring_leases %}
+  <li class="list-group-item px-3 py-2">
+    <div class="d-flex justify-content-between">
+      <div>
+        <div class="font-weight-bold text-dark" style="font-size:13px;">{{ lease.tenant.full_name }}</div>
+        <div class="text-muted" style="font-size:11px;">{{ lease.unit.unit_number }} — {{ lease.unit.property.name }}</div>
+      </div>
+      <div class="text-right">
+        <span class="badge badge-pill badge-warning" style="font-size:10px;">
+          {{ lease.end_date|date:"d M Y" }}
+        </span>
+        {% with days=lease.end_date|timeuntil %}
+        <div style="font-size:10px;color:var(--mis-amber);">{{ days }}</div>
+        {% endwith %}
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="p-3 text-center text-muted" style="font-size:13px;">
+  <i class="fas fa-check-circle text-success fa-lg mb-1 d-block"></i>
+  No leases expiring in the next 30 days.
+</div>
+{% endif %}

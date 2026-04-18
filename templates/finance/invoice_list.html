@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Invoices{% endblock %}
+{% block page_title %}Invoice List{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item">Finance</li>
+<li class="breadcrumb-item active">Invoices</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary shadow-sm">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title text-navy"><i class="fas fa-file-invoice-dollar mr-2"></i>Invoices</h3>
+    <div class="card-tools ml-auto d-flex align-items-center gap-2">
+      <!-- Status Filter Tabs -->
+      <div class="btn-group btn-group-sm mr-2">
+        <a href="{% url 'finance:invoice_list' %}"
+           class="btn {% if not request.GET.status %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           id="filter-all">All</a>
+        <a href="?status=UNPAID"
+           class="btn {% if request.GET.status == 'UNPAID' %}btn-danger{% else %}btn-outline-danger{% endif %}"
+           id="filter-unpaid">Unpaid</a>
+        <a href="?status=PARTIAL"
+           class="btn {% if request.GET.status == 'PARTIAL' %}btn-warning{% else %}btn-outline-warning{% endif %}"
+           id="filter-partial">Partial</a>
+        <a href="?status=PAID"
+           class="btn {% if request.GET.status == 'PAID' %}btn-success{% else %}btn-outline-success{% endif %}"
+           id="filter-paid">Paid</a>
+      </div>
+      <!-- Generate Invoice Button -->
+      <button class="btn btn-primary btn-sm"
+              hx-get="{% url 'finance:invoice_add' %}"
+              hx-target="#modal-body"
+              @click="openModal()"
+              x-data="modalComponent()"
+              id="gen-invoice-btn">
+        <i class="fas fa-plus mr-1"></i> Generate Invoice
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body p-0" id="invoice-list-container">
+    {% include 'finance/partials/invoice_list_table.html' %}
+  </div>
+</div>
+{% endblock %}

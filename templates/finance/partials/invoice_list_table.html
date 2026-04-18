@@ -1,0 +1,65 @@
+{% load tenant_filters %}
+<table class="table table-hover table-sm mb-0" id="invoice-table">
+  <thead>
+    <tr>
+      <th>Invoice #</th>
+      <th>Tenant</th>
+      <th>Unit / Property</th>
+      <th>Period</th>
+      <th>Amount Due</th>
+      <th>Paid</th>
+      <th>Due Date</th>
+      <th>Status</th>
+      <th class="no-sort">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for invoice in invoices %}
+    <tr class="{% if invoice.status != 'PAID' and invoice.due_date < today %}row-overdue{% endif %}">
+      <td class="font-weight-bold">{{ invoice.invoice_number }}</td>
+      <td>
+        <a href="{% url 'tenants:detail' invoice.lease.tenant.pk %}" class="text-navy">
+          {{ invoice.lease.tenant.full_name }}
+        </a>
+      </td>
+      <td>
+        <div>{{ invoice.lease.unit.unit_number }}</div>
+        <div class="text-muted small">{{ invoice.lease.unit.property.name }}</div>
+      </td>
+      <td>{{ invoice.period_month|date:"M Y" }}</td>
+      <td class="font-weight-bold">PKR {{ invoice.amount_due|floatformat:0 }}</td>
+      <td class="text-success">PKR {{ invoice.total_paid|floatformat:0 }}</td>
+      <td>
+        {{ invoice.due_date|date:"d M Y" }}
+        {% if invoice.status != 'PAID' and invoice.due_date < today %}
+        <i class="fas fa-exclamation-triangle text-danger fa-xs ml-1" title="Overdue"></i>
+        {% endif %}
+      </td>
+      <td>
+        <span class="badge badge-pill badge-{{ invoice.status|lower }}">{{ invoice.status }}</span>
+      </td>
+      <td>
+        {% if invoice.status != 'PAID' %}
+        <a href="{% url 'finance:payment_new' %}?invoice={{ invoice.pk }}"
+           class="btn btn-sm btn-outline-success" title="Record Payment"
+           id="pay-invoice-{{ invoice.pk }}">
+          <i class="fas fa-money-bill-wave"></i>
+        </a>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="9" class="text-center py-4 text-muted">
+        <i class="fas fa-file-invoice fa-2x mb-2 d-block"></i>
+        No invoices found.
+        {% if not request.GET.status %}
+          <a href="#" hx-get="{% url 'finance:invoice_add' %}" hx-target="#modal-body" id="first-invoice-link">
+            Generate your first invoice
+          </a>.
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% load tenant_filters %}
+
+{% block title %}{{ tenant.full_name }} — Detail{% endblock %}
+{% block page_title %}{{ tenant.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'tenants:list' %}">Tenants</a></li>
+<li class="breadcrumb-item active">{{ tenant.full_name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+
+  <!-- ── Left Column: Contact + Balance ──────────────────────────────── -->
+  <div class="col-md-4">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header d-flex align-items-center justify-content-between" style="background:linear-gradient(135deg,#1F4E79,#2E75B6);">
+        <h5 class="card-title text-white mb-0"><i class="fas fa-user mr-2"></i>Contact Info</h5>
+        <button class="btn btn-sm btn-light"
+                hx-get="{% url 'tenants:edit' tenant.pk %}"
+                hx-target="#modal-body"
+                @click="openModal()"
+                x-data="modalComponent()"
+                id="edit-tenant-btn">
+          <i class="fas fa-edit text-steel"></i>
+        </button>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:13px;">
+          <dt class="col-5 text-muted">Full Name</dt>
+          <dd class="col-7 font-weight-bold">{{ tenant.full_name }}</dd>
+
+          <dt class="col-5 text-muted">CNIC</dt>
+          <dd class="col-7">{{ tenant.cnic|cnic_display }}</dd>
+
+          <dt class="col-5 text-muted">Phone</dt>
+          <dd class="col-7"><a href="tel:{{ tenant.phone }}">{{ tenant.phone }}</a></dd>
+
+          <dt class="col-5 text-muted">Email</dt>
+          <dd class="col-7 text-truncate"><a href="mailto:{{ tenant.email }}">{{ tenant.email }}</a></dd>
+
+          {% if tenant.profession %}
+          <dt class="col-5 text-muted">Profession</dt>
+          <dd class="col-7">{{ tenant.profession }}</dd>
+          {% endif %}
+
+          {% if tenant.emergency_contact %}
+          <dt class="col-5 text-muted">Emergency</dt>
+          <dd class="col-7">{{ tenant.emergency_contact }}</dd>
+          {% endif %}
+
+          <dt class="col-5 text-muted">Status</dt>
+          <dd class="col-7"><span class="badge badge-pill badge-{{ tenant.status|lower }}">{{ tenant.status }}</span></dd>
+        </dl>
+
+        <hr class="my-3"/>
+
+        <!-- Financial Summary -->
+        <div class="text-center">
+          <div class="text-muted small text-uppercase font-weight-bold mb-1">Outstanding Balance</div>
+          <div class="display-5 font-weight-bold {% if outstanding > 0 %}balance-debt{% elif outstanding < 0 %}balance-credit{% else %}balance-zero{% endif %}"
+               style="font-size:22pt;">
+            PKR {{ outstanding|floatformat:2 }}
+          </div>
+          <div class="text-muted" style="font-size:10px;">
+            Formula: B = (P × M) − ΣR
+          </div>
+        </div>
+
+        {% if active_lease %}
+        <hr class="my-3"/>
+        <div style="font-size:12px;">
+          <div class="font-weight-bold text-navy mb-1">Active Lease</div>
+          <div>Unit: <strong>{{ active_lease.unit.unit_number }}</strong></div>
+          <div>Property: {{ active_lease.unit.property.name }}</div>
+          <div>Rent: <strong>PKR {{ active_lease.monthly_rent|floatformat:0 }}/mo</strong></div>
+          <div>Since: {{ active_lease.start_date|date:"d M Y" }}</div>
+          {% if active_lease.end_date %}
+          <div>Until: {{ active_lease.end_date|date:"d M Y" }}</div>
+          {% else %}
+          <div><span class="badge badge-secondary">Month-to-Month</span></div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="mt-3 d-flex flex-column gap-2">
+          <a href="{% url 'finance:payment_new' %}?tenant={{ tenant.pk }}"
+             class="btn btn-success btn-sm btn-block" id="pay-btn-{{ tenant.pk }}">
+            <i class="fas fa-money-bill-wave mr-1"></i> Record Payment
+          </a>
+          {% if tenant.status == 'ACTIVE' %}
+          <form method="post" action="{% url 'tenants:deactivate' tenant.pk %}"
+                x-data="confirmAction()">
+            {% csrf_token %}
+            <div x-show="!confirming">
+              <button type="button" class="btn btn-outline-danger btn-sm btn-block"
+                      @click="startConfirm()" id="deactivate-start-{{ tenant.pk }}">
+                <i class="fas fa-user-slash mr-1"></i> Deactivate Tenant
+              </button>
+            </div>
+            <div x-show="confirming" class="border border-danger rounded p-2 text-center" style="font-size:12px;">
+              <p class="mb-2 text-danger font-weight-bold">Terminate lease &amp; set unit VACANT?</p>
+              <button type="submit" class="btn btn-danger btn-sm mr-1" id="deactivate-confirm-{{ tenant.pk }}">Yes, Deactivate</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" @click="cancel()">Cancel</button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right Column: Invoices + Payments ───────────────────────────── -->
+  <div class="col-md-8">
+
+    <!-- Invoices Card -->
+    <div class="card card-outline card-primary shadow-sm mb-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title text-navy mb-0"><i class="fas fa-file-invoice mr-2"></i>Invoice History</h5>
+        <a href="{% url 'finance:invoice_add' %}?lease={{ active_lease.pk|default:'' }}"
+           class="btn btn-outline-primary btn-sm" id="gen-invoice-btn">
+          <i class="fas fa-plus mr-1"></i> Generate Invoice
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Invoice #</th><th>Period</th><th>Due Date</th>
+              <th>Amount</th><th>Paid</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for invoice in invoices %}
+            <tr class="{% if invoice.status == 'UNPAID' and invoice.due_date < today %}row-overdue{% endif %}">
+              <td class="font-weight-bold">{{ invoice.invoice_number }}</td>
+              <td>{{ invoice.period_month|date:"M Y" }}</td>
+              <td>{{ invoice.due_date|date:"d M Y" }}</td>
+              <td>PKR {{ invoice.amount_due|floatformat:0 }}</td>
+              <td>PKR {{ invoice.total_paid|floatformat:0 }}</td>
+              <td><span class="badge badge-{{ invoice.status|lower }}">{{ invoice.status }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">No invoices yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Payments Card -->
+    <div class="card card-outline card-success shadow-sm">
+      <div class="card-header">
+        <h5 class="card-title text-navy mb-0"><i class="fas fa-receipt mr-2"></i>Payment History</h5>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr><th>Date</th><th>Amount</th><th>Method</th><th>Reference</th><th>Recorded By</th></tr>
+          </thead>
+          <tbody>
+            {% for payment in payments %}
+            <tr>
+              <td>{{ payment.date_paid|date:"d M Y" }}</td>
+              <td class="font-weight-bold text-success">PKR {{ payment.amount_paid|floatformat:0 }}</td>
+              <td>{{ payment.get_payment_method_display }}</td>
+              <td class="text-muted small">{{ payment.reference_code|default:"—" }}</td>
+              <td class="text-muted small">{{ payment.recorded_by.display_name }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-3">No payments recorded yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- end right col -->
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  var today = '{% now "Y-m-d" %}';
+  document.querySelectorAll('.row-overdue td:first-child').forEach(function(td) {
+    td.insertAdjacentHTML('beforeend', ' <i class="fas fa-exclamation-triangle text-danger fa-xs" title="Overdue"></i>');
+  });
+</script>
+{% endblock %}

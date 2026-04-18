@@ -1,0 +1,7 @@
+{% if cnic %}
+  {% if exists %}
+  <span class="text-danger small"><i class="fas fa-times-circle mr-1"></i>A tenant with CNIC <strong>{{ cnic|slice:":5" }}-{{ cnic|slice:"5:12" }}-{{ cnic|slice:"12:" }}</strong> is already registered.</span>
+  {% else %}
+  <span class="text-success small"><i class="fas fa-check-circle mr-1"></i>CNIC is available.</span>
+  {% endif %}
+{% endif %}

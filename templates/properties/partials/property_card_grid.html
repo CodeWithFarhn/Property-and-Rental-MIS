@@ -1,0 +1,48 @@
+{% for prop in properties %}
+<div class="col-md-4 mb-4">
+  <div class="card property-card h-100">
+    <div class="card-header d-flex align-items-center justify-content-between">
+      <span class="font-weight-bold">{{ prop.name }}</span>
+      <span class="badge badge-pill badge-{{ prop.status|lower }}">{{ prop.status }}</span>
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-1">
+        <i class="fas fa-map-marker-alt mr-1 text-steel"></i>{{ prop.location.name }}
+      </p>
+      <p class="text-muted small mb-2">
+        <i class="fas fa-user-tie mr-1 text-steel"></i>{{ prop.owner.display_name }}
+      </p>
+      <!-- Occupancy Bar -->
+      <div class="d-flex justify-content-between mb-1" style="font-size:11px;">
+        <span>Occupancy</span>
+        <span class="font-weight-bold">{{ prop.occupancy.occupancy_pct }}%</span>
+      </div>
+      <div class="progress occupancy-bar {% if prop.occupancy.occupancy_pct >= 80 %}high{% elif prop.occupancy.occupancy_pct < 40 %}low{% endif %}" style="height:6px;">
+        <div class="progress-bar" style="width:{{ prop.occupancy.occupancy_pct }}%;"></div>
+      </div>
+      <div class="d-flex justify-content-between mt-2" style="font-size:11px;color:#777;">
+        <span><span class="text-success font-weight-bold">{{ prop.occupancy.occupied }}</span> Occupied</span>
+        <span><span class="text-steel font-weight-bold">{{ prop.occupancy.vacant }}</span> Vacant</span>
+        <span><span class="text-warning font-weight-bold">{{ prop.occupancy.maintenance }}</span> Maint.</span>
+        <span><b>{{ prop.occupancy.total }}</b> Total</span>
+      </div>
+    </div>
+    <div class="card-footer bg-transparent d-flex justify-content-between">
+      <a href="{% url 'properties:unit_list' prop.pk %}" class="btn btn-sm btn-outline-primary" id="units-{{ prop.pk }}">
+        <i class="fas fa-door-open mr-1"></i>Manage Units
+      </a>
+      <button class="btn btn-sm btn-outline-secondary"
+              hx-get="{% url 'properties:edit' prop.pk %}" hx-target="#modal-body"
+              @click="$dispatch('mis:open-modal')"
+              id="edit-prop-{{ prop.pk }}">
+        <i class="fas fa-edit"></i>
+      </button>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="col-12 text-center py-5 text-muted">
+  <i class="fas fa-building fa-3x mb-2 d-block opacity-50"></i>
+  No properties found. <a href="#" hx-get="{% url 'properties:add' %}" hx-target="#modal-body" id="first-property-link">Add your first property</a>.
+</div>
+{% endfor %}

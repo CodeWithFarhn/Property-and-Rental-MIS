@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}My Account{% endblock %}
+{% block page_title %}Tenant Dashboard{% endblock %}
+{% block content %}
+<div class="alert alert-info">
+  <i class="fas fa-info-circle mr-2"></i>
+  Tenant self-service portal is a <strong>Phase 3</strong> feature. Contact your manager for statements.
+</div>
+{% if tenant %}
+<div class="card shadow-sm" style="max-width:400px;">
+  <div class="card-body">
+    <h5 class="font-weight-bold text-navy">{{ tenant.full_name }}</h5>
+    <p class="mb-1 text-muted small">CNIC: {{ tenant.cnic }}</p>
+    <p class="mb-1 text-muted small">Phone: {{ tenant.phone }}</p>
+    <p class="mb-0">
+      <span class="font-weight-bold">Account Balance: </span>
+      <span class="{% if tenant.account_balance < 0 %}balance-debt{% elif tenant.account_balance > 0 %}balance-credit{% endif %}">
+        PKR {{ tenant.account_balance|floatformat:2 }}
+      </span>
+    </p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

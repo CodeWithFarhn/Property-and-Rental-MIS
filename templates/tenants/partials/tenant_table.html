@@ -1,0 +1,83 @@
+{% load tenant_filters %}
+<table class="table table-hover table-sm" id="tenant-table">
+  <thead>
+    <tr>
+      <th>Tenant</th>
+      <th>Unit / Property</th>
+      <th>Monthly Rent</th>
+      <th>Outstanding Balance</th>
+      <th>Last Payment</th>
+      <th>Status</th>
+      <th class="no-sort">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for tenant in tenants %}
+    {% with lease=tenant.leases.filter.is_active %}
+    <tr id="tenant-row-{{ tenant.pk }}" class="cursor-pointer">
+      <td>
+        <a href="{% url 'tenants:detail' tenant.pk %}" class="text-navy font-weight-bold">
+          {{ tenant.full_name }}
+        </a>
+        <div class="text-muted small">{{ tenant.cnic|cnic_display }}</div>
+        <div class="text-muted small"><i class="fas fa-phone fa-xs"></i> {{ tenant.phone }}</div>
+      </td>
+      <td>
+        {% with al=tenant.leases.all %}
+        {% for l in al %}{% if l.is_active %}
+          <div class="font-weight-bold">{{ l.unit.unit_number }}</div>
+          <div class="text-muted small">{{ l.unit.property.name }}</div>
+        {% endif %}{% endfor %}
+        {% endwith %}
+      </td>
+      <td>
+        {% for l in tenant.leases.all %}{% if l.is_active %}
+          <span class="font-weight-bold">PKR {{ l.monthly_rent|floatformat:0 }}</span>
+        {% endif %}{% endfor %}
+      </td>
+      <td>
+        <span class="{% if tenant.outstanding > 0 %}balance-debt{% elif tenant.outstanding < 0 %}balance-credit{% else %}balance-zero{% endif %}">
+          PKR {{ tenant.outstanding|floatformat:2 }}
+        </span>
+        {% if tenant.outstanding > 0 %}
+        <div class="text-muted" style="font-size:10px;" title="B = (P × M) − ΣR">
+          <i class="fas fa-info-circle"></i> Formula-computed
+        </div>
+        {% endif %}
+      </td>
+      <td>
+        {% with last_pay=tenant.leases.all.0.invoices.all.0.payments.last %}
+        {% if last_pay %}
+          <span {% if last_pay.date_paid|timesince|slice:":2" > "30" %}class="text-warning"{% endif %}>
+            {{ last_pay.date_paid|date:"d M Y" }}
+          </span>
+        {% else %}
+          <span class="text-danger font-italic small">Never</span>
+        {% endif %}
+        {% endwith %}
+      </td>
+      <td>
+        <span class="badge badge-pill badge-{{ tenant.status|lower }}">{{ tenant.status }}</span>
+      </td>
+      <td>
+        <div class="btn-group btn-group-sm">
+          <a href="{% url 'tenants:detail' tenant.pk %}" class="btn btn-outline-primary btn-sm" title="View Detail" id="view-tenant-{{ tenant.pk }}">
+            <i class="fas fa-eye"></i>
+          </a>
+          <a href="{% url 'finance:payment_new' %}?tenant={{ tenant.pk }}" class="btn btn-outline-success btn-sm" title="Record Payment" id="pay-tenant-{{ tenant.pk }}">
+            <i class="fas fa-money-bill-wave"></i>
+          </a>
+        </div>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" class="text-center py-4 text-muted">
+        <i class="fas fa-user-slash fa-2x mb-2 d-block"></i>
+        No {{ status|lower }} tenants found.
+        {% if status == 'ACTIVE' %}<a href="{% url 'tenants:add' %}">Add your first tenant</a>.{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

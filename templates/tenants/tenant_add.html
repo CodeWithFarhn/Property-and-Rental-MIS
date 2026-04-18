@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load tenant_filters %}
+{% block title %}Add Tenant{% endblock %}
+{% block page_title %}Add New Tenant{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'tenants:list' %}">Tenants</a></li>
+<li class="breadcrumb-item active">Add Tenant</li>
+{% endblock %}
+
+{% block content %}
+<form method="post" enctype="multipart/form-data"
+      hx-post="{% url 'tenants:add' %}" hx-target="this" hx-swap="outerHTML"
+      x-data="proratedAmount(0)">
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+  {% endif %}
+
+  <div class="row">
+    <!-- ── Section A: Tenant Details ─────────────────────────────────── -->
+    <div class="col-md-6">
+      <div class="card card-outline card-primary shadow-sm">
+        <div class="card-header" style="background:linear-gradient(135deg,#1F4E79,#2E75B6);">
+          <h3 class="card-title text-white"><i class="fas fa-user mr-2"></i>Tenant Details</h3>
+        </div>
+        <div class="card-body">
+          {% for field in form %}{% if field.name in 'full_name,email,phone,cnic,profession,emergency_contact,id_document' %}
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">{{ field.label }}{% if field.field.required %} <span class="text-danger">*</span>{% endif %}</label>
+            {{ field }}
+            {% if field.name == 'cnic' %}<div id="cnic-feedback" class="mt-1"></div>{% endif %}
+            {% if field.errors %}<small class="text-danger">{{ field.errors.0 }}</small>{% endif %}
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section B: Lease & Unit ───────────────────────────────────── -->
+    <div class="col-md-6">
+      <div class="card card-outline card-success shadow-sm">
+        <div class="card-header" style="background:linear-gradient(135deg,#375623,#2E75B6);">
+          <h3 class="card-title text-white"><i class="fas fa-key mr-2"></i>Lease & Unit Assignment</h3>
+        </div>
+        <div class="card-body">
+
+          <!-- Property dropdown (cascades to unit) -->
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">Property <span class="text-danger">*</span></label>
+            {{ form.property }}
+            {% if form.property.errors %}<small class="text-danger">{{ form.property.errors.0 }}</small>{% endif %}
+          </div>
+
+          <!-- Unit dropdown (HTMX-populated) -->
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">Unit <span class="text-danger">*</span></label>
+            <select name="unit" id="id_unit" class="form-control"
+                    hx-get="" hx-target="#unit-info-box" hx-trigger="change"
+                    hx-include="[name=unit]">
+              <option value="">— Select Property First —</option>
+              <div id="unit-options"></div>
+            </select>
+            {% if form.unit.errors %}<small class="text-danger">{{ form.unit.errors.0 }}</small>{% endif %}
+            <div id="unit-info-box" class="mt-1"></div>
+          </div>
+
+          <!-- Dates -->
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Start Date <span class="text-danger">*</span></label>
+              {{ form.start_date }}
+              {% if form.start_date.errors %}<small class="text-danger">{{ form.start_date.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="form-group col-6" id="end-date-field">
+              <label class="font-weight-bold" style="font-size:13px;">End Date</label>
+              {{ form.end_date }}
+              {% if form.end_date.errors %}<small class="text-danger">{{ form.end_date.errors.0 }}</small>{% endif %}
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="custom-control custom-checkbox">
+              {{ form.month_to_month }}
+              <label class="custom-control-label" for="{{ form.month_to_month.id_for_label }}">Month-to-Month (no fixed end date)</label>
+            </div>
+          </div>
+
+          <!-- Financials -->
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Monthly Rent <span class="text-danger">*</span></label>
+              {{ form.monthly_rent }}
+              {% if form.monthly_rent.errors %}<small class="text-danger">{{ form.monthly_rent.errors.0 }}</small>{% endif %}
+            </div>
+            <div class="form-group col-6">
+              <label class="font-weight-bold" style="font-size:13px;">Deposit Amount</label>
+              {{ form.deposit_amount }}
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="custom-control custom-checkbox">
+              {{ form.deposit_paid }}
+              <label class="custom-control-label" for="{{ form.deposit_paid.id_for_label }}">Deposit Paid</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="font-weight-bold" style="font-size:13px;">Notes</label>
+            {{ form.notes }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div class="d-flex justify-content-between mt-2 mb-4">
+    <a href="{% url 'tenants:list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left mr-1"></i> Cancel
+    </a>
+    <button type="submit" class="btn btn-success" id="admit-tenant-btn">
+      <i class="fas fa-user-check mr-1"></i> Admit Tenant
+    </button>
+  </div>
+</form>
+{% endblock %}

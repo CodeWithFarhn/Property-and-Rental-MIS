@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Staff Dashboard{% endblock %}
+{% block page_title %}Staff Dashboard{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Dashboard</li>{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-4">
+    <div class="card kpi-card kpi-success">
+      <div class="card-body">
+        <div class="text-muted small text-uppercase font-weight-bold">My Payments Today</div>
+        <div class="kpi-number text-success">{{ payments_today }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="row">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header"><h3 class="card-title text-navy">Quick Actions</h3></div>
+      <div class="card-body">
+        <a href="{% url 'finance:payment_new' %}" class="btn btn-success btn-block mb-2" id="staff-record-payment">
+          <i class="fas fa-money-bill-wave mr-2"></i>Record a Payment
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

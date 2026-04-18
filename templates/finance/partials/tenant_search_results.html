@@ -1,0 +1,15 @@
+{% if tenants %}
+{% for tenant in tenants %}
+<div class="px-3 py-2 border-bottom cursor-pointer hover-bg"
+     style="cursor:pointer;"
+     data-tenant-id="{{ tenant.pk }}"
+     data-tenant-name="{{ tenant.full_name }}">
+  <div class="font-weight-bold" style="font-size:13px;">{{ tenant.full_name }}</div>
+  <div class="text-muted" style="font-size:11px;">{{ tenant.phone }} &bull; CNIC {{ tenant.cnic }}</div>
+</div>
+{% endfor %}
+{% elif q %}
+<div class="px-3 py-2 text-muted text-center" style="font-size:13px;">
+  No active tenants matching "{{ q }}".
+</div>
+{% endif %}

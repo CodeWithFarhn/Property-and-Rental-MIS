@@ -1,0 +1,7 @@
+<div class="alert alert-info py-2 px-3 mt-2" style="font-size:13px;">
+  <strong>Unit {{ unit.unit_number }}</strong>
+  ({{ unit.get_unit_type_display }}) —
+  <span class="font-weight-bold text-steel">PKR {{ unit.monthly_rent|floatformat:0 }}/month</span>
+  &nbsp;
+  <span class="badge badge-{{ unit.status|lower }}">{{ unit.status }}</span>
+</div>

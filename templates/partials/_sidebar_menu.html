@@ -1,0 +1,98 @@
+<!-- partials/_sidebar_menu.html — role-based nav links -->
+{% if role == 'ADMIN' or role == 'MANAGER' %}
+
+  <li class="nav-item">
+    <a href="{% url 'dashboard:index' %}" class="nav-link {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}">
+      <i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p>
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a href="{% url 'properties:list' %}" class="nav-link {% if request.resolver_match.app_name == 'properties' %}active{% endif %}">
+      <i class="nav-icon fas fa-building"></i><p>Properties</p>
+    </a>
+  </li>
+
+  <li class="nav-item">
+    <a href="{% url 'tenants:list' %}" class="nav-link {% if request.resolver_match.app_name == 'tenants' %}active{% endif %}">
+      <i class="nav-icon fas fa-users"></i><p>Tenants</p>
+    </a>
+  </li>
+
+  <li class="nav-item has-treeview {% if request.resolver_match.app_name == 'finance' %}menu-open{% endif %}">
+    <a href="#" class="nav-link {% if request.resolver_match.app_name == 'finance' %}active{% endif %}">
+      <i class="nav-icon fas fa-file-invoice-dollar"></i>
+      <p>Finance <i class="right fas fa-angle-left"></i></p>
+    </a>
+    <ul class="nav nav-treeview">
+      <li class="nav-item">
+        <a href="{% url 'finance:invoice_list' %}" class="nav-link">
+          <i class="far fa-circle nav-icon"></i><p>Invoices</p>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{% url 'finance:payment_new' %}" class="nav-link">
+          <i class="far fa-circle nav-icon"></i><p>Record Payment</p>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{% url 'finance:payment_list' %}" class="nav-link">
+          <i class="far fa-circle nav-icon"></i><p>Payment Ledger</p>
+        </a>
+      </li>
+    </ul>
+  </li>
+
+  {% if role == 'ADMIN' %}
+  <li class="nav-item">
+    <a href="#" class="nav-link text-muted">
+      <i class="nav-icon fas fa-list-alt"></i><p>Audit Log <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="#" class="nav-link text-muted">
+      <i class="nav-icon fas fa-users-cog"></i><p>Users <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="#" class="nav-link text-muted">
+      <i class="nav-icon fas fa-cog"></i><p>Settings <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    </a>
+  </li>
+  {% endif %}
+
+{% elif role == 'STAFF' %}
+
+  <li class="nav-item">
+    <a href="{% url 'dashboard:staff' %}" class="nav-link">
+      <i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="{% url 'finance:payment_new' %}" class="nav-link">
+      <i class="nav-icon fas fa-money-bill-wave"></i><p>Record Payment</p>
+    </a>
+  </li>
+
+{% elif role == 'OWNER' %}
+
+  <li class="nav-item">
+    <a href="{% url 'dashboard:owner' %}" class="nav-link">
+      <i class="nav-icon fas fa-tachometer-alt"></i><p>My Dashboard</p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="#" class="nav-link text-muted">
+      <i class="nav-icon fas fa-building"></i><p>My Properties <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    </a>
+  </li>
+
+{% elif role == 'TENANT' %}
+
+  <li class="nav-item">
+    <a href="{% url 'dashboard:tenant' %}" class="nav-link">
+      <i class="nav-icon fas fa-home"></i><p>My Dashboard</p>
+    </a>
+  </li>
+
+{% endif %}

@@ -1,0 +1,277 @@
+/*
+  custom.css — Rental Property MIS Design System
+  UI report colours and badge conventions applied on top of AdminLTE 3.
+  ============================================================
+  Colour Palette (from UI report v2, Section 1.1):
+    Primary Navy:       #1F4E79
+    Accent Steel Blue:  #2E75B6
+    Warning Amber:      #C55A11
+    Success Forest:     #375623
+    Danger Deep Red:    #922B21
+    Neutral Gray:       #F2F2F2
+    Tenant Purple:      #4A3568
+    Owner Teal:         #1D6A72
+  ============================================================
+*/
+
+/* ── CSS Custom Properties ─────────────────────────────────── */
+:root {
+  --mis-navy:       #1F4E79;
+  --mis-steel:      #2E75B6;
+  --mis-amber:      #C55A11;
+  --mis-forest:     #375623;
+  --mis-red:        #922B21;
+  --mis-gray:       #F2F2F2;
+  --mis-purple:     #4A3568;
+  --mis-teal:       #1D6A72;
+  --mis-dark-gray:  #595959;
+  --mis-sidebar-bg: #1F4E79;
+  --mis-sidebar-hover: #2E75B6;
+}
+
+/* ── Typography ────────────────────────────────────────────── */
+body {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+h1.page-title {
+  font-size: 17pt;
+  font-weight: 700;
+  color: var(--mis-navy);
+}
+
+h2.section-heading {
+  font-size: 14pt;
+  font-weight: 700;
+  color: var(--mis-steel);
+}
+
+.card-title {
+  font-size: 12pt;
+  font-weight: 700;
+  color: var(--mis-dark-gray);
+}
+
+/* ── Sidebar Overrides ─────────────────────────────────────── */
+.main-sidebar,
+.sidebar {
+  background-color: var(--mis-sidebar-bg) !important;
+}
+
+.nav-sidebar .nav-item > .nav-link {
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 4px;
+  margin: 2px 8px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-sidebar .nav-item > .nav-link:hover,
+.nav-sidebar .nav-item > .nav-link.active {
+  background-color: var(--mis-sidebar-hover) !important;
+  color: #fff !important;
+}
+
+.brand-link {
+  background-color: var(--mis-navy) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+.brand-text {
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff !important;
+}
+
+/* ── Top Navbar ────────────────────────────────────────────── */
+.main-header.navbar {
+  background-color: #fff !important;
+  border-bottom: 2px solid var(--mis-navy);
+}
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn-primary {
+  background-color: var(--mis-steel) !important;
+  border-color: var(--mis-steel) !important;
+}
+.btn-primary:hover {
+  background-color: var(--mis-navy) !important;
+  border-color: var(--mis-navy) !important;
+}
+.btn-danger {
+  background-color: var(--mis-red) !important;
+  border-color: var(--mis-red) !important;
+}
+.btn-success {
+  background-color: var(--mis-forest) !important;
+  border-color: var(--mis-forest) !important;
+}
+.btn-warning {
+  background-color: var(--mis-amber) !important;
+  border-color: var(--mis-amber) !important;
+  color: #fff !important;
+}
+
+/* ── KPI Cards ─────────────────────────────────────────────── */
+.kpi-card {
+  border-left: 4px solid var(--mis-steel);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.kpi-card:hover {
+  box-shadow: 0 4px 16px rgba(31,78,121,0.15);
+  transform: translateY(-2px);
+  cursor: pointer;
+}
+.kpi-card .kpi-number {
+  font-size: 24pt;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.kpi-card.kpi-danger { border-left-color: var(--mis-red); }
+.kpi-card.kpi-success { border-left-color: var(--mis-forest); }
+.kpi-card.kpi-warning { border-left-color: var(--mis-amber); }
+.kpi-number.text-danger { color: var(--mis-red) !important; }
+.kpi-number.text-success { color: var(--mis-forest) !important; }
+
+/* ── DataTable Overrides ───────────────────────────────────── */
+table.dataTable thead th {
+  background-color: var(--mis-navy) !important;
+  color: #fff !important;
+  font-size: 10pt;
+  font-weight: 700;
+  border-color: var(--mis-navy) !important;
+}
+
+table.dataTable tbody tr:nth-child(even) {
+  background-color: var(--mis-gray);
+}
+
+table.dataTable tbody tr:hover {
+  background-color: #e8f0f7 !important;
+}
+
+/* ── Status Badges (Section 1.3 of UI report) ─────────────── */
+/* Unit */
+.badge-vacant      { background-color: var(--mis-forest); color: #fff; }
+.badge-occupied    { background-color: var(--mis-steel);  color: #fff; }
+.badge-maintenance { background-color: var(--mis-amber);  color: #fff; }
+
+/* Invoice */
+.badge-unpaid  { background-color: var(--mis-red);   color: #fff; }
+.badge-partial { background-color: #e6a817;          color: #fff; }
+.badge-paid    { background-color: var(--mis-forest); color: #fff; }
+
+/* Ticket urgency */
+.badge-critical { background-color: var(--mis-red);   color: #fff; }
+.badge-high     { background-color: #d4500a;          color: #fff; }
+.badge-medium   { background-color: var(--mis-amber); color: #fff; }
+.badge-low      { background-color: #7a7a7a;          color: #fff; }
+
+/* Ticket status */
+.badge-open        { background-color: var(--mis-red);    color: #fff; }
+.badge-in-progress { background-color: var(--mis-amber);  color: #fff; }
+.badge-resolved    { background-color: var(--mis-teal);   color: #fff; }
+.badge-closed      { background-color: #aaa;              color: #333; }
+
+/* Tenant */
+.badge-active   { background-color: var(--mis-forest); color: #fff; }
+.badge-inactive { background-color: #aaa;              color: #333; }
+
+/* Role badges */
+.badge-role-admin   { background-color: var(--mis-navy);   color: #fff; }
+.badge-role-manager { background-color: var(--mis-steel);  color: #fff; }
+.badge-role-staff   { background-color: var(--mis-amber);  color: #fff; }
+.badge-role-owner   { background-color: var(--mis-teal);   color: #fff; }
+.badge-role-tenant  { background-color: var(--mis-purple); color: #fff; }
+
+/* ── Financial Colours ─────────────────────────────────────── */
+.balance-debt   { color: var(--mis-red) !important; font-weight: 700; }
+.balance-credit { color: var(--mis-forest) !important; font-weight: 700; }
+.balance-zero   { color: var(--mis-dark-gray); }
+
+/* ── HTMX Loading Indicators ───────────────────────────────── */
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator { display: inline-block; }
+.htmx-request.htmx-indicator { display: inline-block; }
+
+/* ── Toast Notifications ───────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 9999;
+  min-width: 280px;
+  max-width: 380px;
+}
+
+.mis-toast {
+  border-radius: 6px;
+  padding: 0.85rem 1.1rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideInRight 0.25s ease;
+}
+
+.mis-toast.toast-success { background: var(--mis-forest); color: #fff; }
+.mis-toast.toast-error   { background: var(--mis-red);    color: #fff; }
+.mis-toast.toast-info    { background: var(--mis-steel);  color: #fff; }
+.mis-toast.toast-warning { background: var(--mis-amber);  color: #fff; }
+
+@keyframes slideInRight {
+  from { transform: translateX(110%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+/* ── Property Cards (grid view) ────────────────────────────── */
+.property-card {
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.property-card:hover {
+  box-shadow: 0 6px 20px rgba(31,78,121,0.12);
+  transform: translateY(-3px);
+}
+.property-card .card-header {
+  background: linear-gradient(135deg, var(--mis-navy) 0%, var(--mis-steel) 100%);
+  color: #fff;
+  border-radius: 8px 8px 0 0;
+}
+
+/* ── Occupancy Progress Bar ────────────────────────────────── */
+.occupancy-bar .progress-bar { background-color: var(--mis-steel); }
+.occupancy-bar.high .progress-bar { background-color: var(--mis-forest); }
+.occupancy-bar.low  .progress-bar { background-color: var(--mis-red); }
+
+/* ── Overdue Row Highlight ─────────────────────────────────── */
+tr.row-overdue { border-left: 4px solid var(--mis-red); }
+tr.row-expiring-soon { border-left: 4px solid var(--mis-amber); }
+tr.row-critical  { border-left: 4px solid var(--mis-red); }
+
+/* ── Misc Utilities ────────────────────────────────────────── */
+.cursor-pointer { cursor: pointer; }
+.text-navy  { color: var(--mis-navy)  !important; }
+.text-steel { color: var(--mis-steel) !important; }
+.bg-navy    { background-color: var(--mis-navy)  !important; }
+.bg-steel   { background-color: var(--mis-steel) !important; }
+
+.section-divider {
+  border-top: 2px solid var(--mis-navy);
+  margin: 1.5rem 0;
+}
+
+/* ── Sidebar items for role  ───────────────────────────────── */
+.sidebar-header-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.4);
+  padding: 0.5rem 1rem 0.25rem;
+}

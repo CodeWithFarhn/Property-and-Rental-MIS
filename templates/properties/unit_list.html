@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}{{ property.name }} — Units{% endblock %}
+{% block page_title %}{{ property.name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'properties:list' %}">Properties</a></li>
+<li class="breadcrumb-item active">{{ property.name }}</li>
+{% endblock %}
+
+{% block content %}
+<!-- Occupancy Summary Cards -->
+<div class="row mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card kpi-success text-center py-2">
+      <div class="kpi-number text-success">{{ occupancy.occupied }}</div>
+      <div class="text-muted small">Occupied</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card text-center py-2">
+      <div class="kpi-number text-steel">{{ occupancy.vacant }}</div>
+      <div class="text-muted small">Vacant</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card kpi-warning text-center py-2">
+      <div class="kpi-number text-warning">{{ occupancy.maintenance }}</div>
+      <div class="text-muted small">Maintenance</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card text-center py-2">
+      <div class="kpi-number text-navy">{{ occupancy.total }}</div>
+      <div class="text-muted small">Total Units</div>
+    </div>
+  </div>
+</div>
+
+<!-- Units Table -->
+<div class="card card-outline card-primary shadow-sm">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title text-navy"><i class="fas fa-door-open mr-2"></i>Units</h3>
+    <div class="card-tools ml-auto">
+      <button class="btn btn-primary btn-sm"
+              hx-get="{% url 'properties:unit_add' property.pk %}"
+              hx-target="#modal-body" @click="openModal()"
+              x-data="modalComponent()" id="add-unit-btn">
+        <i class="fas fa-plus mr-1"></i> Add Unit
+      </button>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover table-sm mb-0" id="units-table">
+      <thead>
+        <tr>
+          <th>Unit No.</th><th>Type</th><th>Bedrooms</th>
+          <th>Monthly Rent</th><th>Status</th><th>Tenant</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for unit in units %}
+        <tr>
+          <td class="font-weight-bold">{{ unit.unit_number }}</td>
+          <td>{{ unit.get_unit_type_display }}</td>
+          <td>{{ unit.bedrooms }}</td>
+          <td>PKR {{ unit.monthly_rent|floatformat:0 }}</td>
+          <td><span class="badge badge-pill badge-{{ unit.status|lower }}">{{ unit.status }}</span></td>
+          <td>
+            {% for lease in unit.leases.all %}{% if lease.is_active %}
+              <a href="{% url 'tenants:detail' lease.tenant.pk %}">{{ lease.tenant.full_name }}</a>
+            {% endif %}{% empty %}<span class="text-muted small">—</span>{% endfor %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-secondary"
+                    hx-get="{% url 'properties:unit_edit' unit.pk %}"
+                    hx-target="#modal-body" @click="$dispatch('mis:open-modal')"
+                    id="edit-unit-{{ unit.pk }}">
+              <i class="fas fa-edit"></i>
+            </button>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No units added yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function () {
+    $('#units-table').DataTable({ paging: false, searching: false, info: false, columnDefs: [{ orderable: false, targets: [-1] }] });
+  });
+</script>
+{% endblock %}
