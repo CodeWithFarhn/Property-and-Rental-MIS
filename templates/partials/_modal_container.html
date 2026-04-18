@@ -1,25 +1,43 @@
 <!-- partials/_modal_container.html
      Global HTMX modal target. All HTMX modals load their content into #modal-body.
-     Alpine.js controls open/close via the modalComponent() in app.js.
+     Uses a window-level custom event (mis:open-modal / mis:close-modal) so any
+     button anywhere on the page can trigger the modal without sharing an Alpine scope.
 -->
-<div id="modal-container" x-data="modalComponent()">
-  <div class="modal fade show" id="htmx-modal" tabindex="-1" role="dialog"
+<div id="modal-container"
+     x-data="{ open: false }"
+     @mis:open-modal.window="open = true"
+     @mis:close-modal.window="open = false"
+     @keydown.escape.window="open = false">
+
+  <!-- Backdrop -->
+  <div class="modal-backdrop fade show"
        x-show="open"
+       x-cloak
+       @click="open = false; $dispatch('mis:close-modal')"
+       style="z-index:1040;">
+  </div>
+
+  <!-- Modal dialog -->
+  <div class="modal d-block"
+       id="htmx-modal"
+       tabindex="-1"
+       role="dialog"
+       x-show="open"
+       x-cloak
        x-transition:enter="transition ease-out duration-200"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100"
+       x-transition:enter-start="opacity-0 transform scale-95"
+       x-transition:enter-end="opacity-100 transform scale-100"
        x-transition:leave="transition ease-in duration-150"
        x-transition:leave-start="opacity-100"
        x-transition:leave-end="opacity-0"
-       style="display:none;">
+       style="z-index:1050;">
     <div class="modal-dialog modal-lg" role="document" @click.stop>
+      <!-- #modal-body is the HTMX swap target — the whole modal-content div -->
       <div class="modal-content shadow-lg" id="modal-body">
-        <!-- HTMX loads partials here -->
+        <!-- Spinner placeholder shown before first HTMX load -->
         <div class="modal-header">
           <h5 class="modal-title">Loading…</h5>
-          <button type="button" class="close" @click="closeModal()">
-            <span>&times;</span>
-          </button>
+          <button type="button" class="close" @click="open = false">&times;</button>
         </div>
         <div class="modal-body text-center py-4">
           <i class="fas fa-spinner fa-spin fa-2x text-steel"></i>
@@ -27,19 +45,4 @@
       </div>
     </div>
   </div>
-  <!-- Backdrop -->
-  <div class="modal-backdrop fade show" x-show="open" @click="closeModal()" style="display:none;"></div>
 </div>
-
-<script>
-  // When HTMX loads content into #modal-body, open the modal via Alpine
-  document.body.addEventListener('htmx:afterSwap', function(evt) {
-    if (evt.detail.target.id === 'modal-body') {
-      const modalEl = document.getElementById('modal-container');
-      if (modalEl && modalEl._x_dataStack) {
-        // Use Alpine's $data to open
-        Alpine.evaluate(modalEl, 'open = true');
-      }
-    }
-  });
-</script>

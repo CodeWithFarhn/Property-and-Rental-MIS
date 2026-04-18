@@ -275,3 +275,6 @@ tr.row-critical  { border-left: 4px solid var(--mis-red); }
   color: rgba(255,255,255,0.4);
   padding: 0.5rem 1rem 0.25rem;
 }
+
+/* ── Alpine.js x-cloak: hide elements until Alpine initialises ───────────── */
+[x-cloak] { display: none !important; }

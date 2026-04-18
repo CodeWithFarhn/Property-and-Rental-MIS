@@ -19,8 +19,9 @@
       </div>
       <!-- Add Property Button -->
       <button class="btn btn-primary btn-sm"
-              hx-get="{% url 'properties:add' %}" hx-target="#modal-body" hx-trigger="click"
-              @click="openModal()" x-data="modalComponent()"
+              hx-get="{% url 'properties:add' %}"
+              hx-target="#modal-body"
+              hx-trigger="click"
               id="add-property-btn">
         <i class="fas fa-plus mr-1"></i> Add Property
       </button>

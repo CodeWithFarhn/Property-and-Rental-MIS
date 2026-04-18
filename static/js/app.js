@@ -4,13 +4,14 @@
   NO inline <script> blocks in templates — all JS lives here.
 */
 
-// ── Modal Component ─────────────────────────────────────────────────────────
-function modalComponent() {
-  return {
-    open: false,
-    openModal() { this.open = true; },
-    closeModal() { this.open = false; },
-  };
+// ── Modal helpers (called from buttons) ─────────────────────────────────────
+// Buttons dispatch window events; the modal container in _modal_container.html
+// listens with @mis:open-modal.window and @mis:close-modal.window.
+function openModal() {
+  window.dispatchEvent(new CustomEvent('mis:open-modal'));
+}
+function closeModal() {
+  window.dispatchEvent(new CustomEvent('mis:close-modal'));
 }
 
 // ── Toast Component ─────────────────────────────────────────────────────────
@@ -51,17 +52,18 @@ function passwordToggle() {
   };
 }
 
+// ── HTMX: Auto-open modal when content is swapped into #modal-body ───────────
+// Buttons only need hx-get + hx-target="#modal-body" — the modal opens itself.
+document.body.addEventListener('htmx:afterSwap', function (evt) {
+  if (evt.detail.target && evt.detail.target.id === 'modal-body') {
+    openModal();
+  }
+});
+
 // ── HTMX: Global Error Handler ───────────────────────────────────────────────
-// Catches all 4xx/5xx responses from any HTMX request.
-// Fires a red toast — implemented once here, covers every page automatically.
 document.body.addEventListener('htmx:responseError', function (evt) {
   const status = evt.detail.xhr.status;
-  const toastEl = document.getElementById('global-toast-manager');
-  if (toastEl && toastEl._x_dataStack) {
-    // Access the Alpine component and call show()
-    Alpine.store && console.warn('[HTMX Error]', status);
-  }
-  // Fallback: fire a custom event that the toast manager listens to
+  console.warn('[HTMX Error]', status);
   document.dispatchEvent(new CustomEvent('mis:toast', {
     detail: { message: `Something went wrong (${status}). Please try again.`, type: 'error' }
   }));

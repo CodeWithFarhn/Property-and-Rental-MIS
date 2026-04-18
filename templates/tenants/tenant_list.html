@@ -64,8 +64,6 @@
       }
       $('#tenant-table').DataTable({
         paging: false, searching: false, info: false, ordering: true,
-        dom: 'Brt',
-        buttons: ['csv', 'excel', 'print'],
         columnDefs: [{ orderable: false, targets: [-1] }],
       });
     }

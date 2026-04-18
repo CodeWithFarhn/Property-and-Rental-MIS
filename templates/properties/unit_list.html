@@ -39,11 +39,12 @@
 <div class="card card-outline card-primary shadow-sm">
   <div class="card-header d-flex align-items-center">
     <h3 class="card-title text-navy"><i class="fas fa-door-open mr-2"></i>Units</h3>
-    <div class="card-tools ml-auto">
+    <div class="card-tools">
       <button class="btn btn-primary btn-sm"
               hx-get="{% url 'properties:unit_add' property.pk %}"
-              hx-target="#modal-body" @click="openModal()"
-              x-data="modalComponent()" id="add-unit-btn">
+              hx-target="#modal-body"
+              hx-trigger="click"
+              id="add-unit-btn">
         <i class="fas fa-plus mr-1"></i> Add Unit
       </button>
     </div>
@@ -72,7 +73,8 @@
           <td>
             <button class="btn btn-sm btn-outline-secondary"
                     hx-get="{% url 'properties:unit_edit' unit.pk %}"
-                    hx-target="#modal-body" @click="$dispatch('mis:open-modal')"
+                    hx-target="#modal-body"
+                    hx-trigger="click"
                     id="edit-unit-{{ unit.pk }}">
               <i class="fas fa-edit"></i>
             </button>
