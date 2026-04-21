@@ -1,0 +1,1486 @@
+--- Documents/rental_mis_ui_report_v4(1).docx ---
+CSC-458  ·  Management Information Systems
+UI / UX Design Report
+Rental Property Management Information System
+Screen-by-Screen Layout · Role Flows · HTMX Interactions
+Bahria University, Karachi Campus  ·  Spring 2026
+1. Design System & Global Conventions
+All pages in the system are built on AdminLTE 3 layered with HTMX and Alpine.js. This section defines the design decisions that apply globally — every page inherits these rules.
+1.1 Colour Palette
+Colour Role
+Hex
+Used For
+Primary — Navy
+#1F4E79
+Page headers, section titles, sidebar background
+Accent — Steel Blue
+#2E75B6
+Buttons, links, active menu items, table headers
+Warning — Amber Orange
+#C55A11
+Phase banners, overdue badges, warnings
+Success — Forest Green
+#375623
+PAID status, VACANT units, positive balances
+Danger — Deep Red
+#922B21
+OVERDUE badges, CRITICAL tickets, destructive actions
+Neutral — Light Gray
+#F2F2F2
+Table row alternates, card backgrounds, disabled states
+Tenant Purple
+#4A3568
+Tenant portal accent, tenant-role badges
+Owner Teal
+#1D6A72
+Owner dashboard accent, owner-role badges
+1.2 Typography
+Element
+Specification
+Page Title (H1)
+Arial 17pt Bold, Navy #1F4E79
+Section Heading (H2)
+Arial 14pt Bold, Steel Blue #2E75B6
+Card/Panel Title (H3)
+Arial 12pt Bold, Dark Gray #595959
+Body Text
+Arial 11pt Regular, Black. Line height 1.6.
+Table Cell
+Arial 10pt Regular. Column headers: 10pt Bold White on Navy.
+Badge / Pill
+Arial 9pt Bold, uppercase. Rounded corners. Color-coded by status.
+Form Label
+Arial 10pt Bold, Dark Gray. Placed above input fields.
+KPI Number
+Arial 24pt Bold. Color matches semantic meaning (green=good, red=overdue).
+1.3 Status Badge Reference
+Consistent badge colours are used across every table and card in the system. Never deviate from this map.
+Entity
+Status Value
+Badge Colour
+Unit
+VACANT
+Green background, white text
+Unit
+OCCUPIED
+Steel Blue background, white text
+Unit
+MAINTENANCE
+Amber Orange background, white text
+Invoice
+UNPAID
+Red background, white text
+Invoice
+PARTIAL
+Amber background, white text
+Invoice
+PAID
+Green background, white text
+Ticket
+OPEN
+Red background, white text
+Ticket
+IN_PROGRESS
+Amber background, white text
+Ticket
+RESOLVED
+Teal background, white text
+Ticket
+CLOSED
+Gray background, dark text
+Tenant
+ACTIVE
+Green background, white text
+Tenant
+INACTIVE
+Gray background, dark text
+Urgency
+CRITICAL
+Red background — triggers MAINTENANCE unit status
+Urgency
+HIGH
+Orange background
+Urgency
+MEDIUM
+Amber background
+Urgency
+LOW
+Gray background
+Contract
+DRAFT
+Gray background — awaiting owner T&C acknowledgement
+Contract
+ACTIVE
+Green background — acknowledged and in force
+Contract
+TERMINATED
+Red background — contract ended
+Settlement
+PENDING
+Amber background — generated, awaiting bank remittance to owner
+Settlement
+REMITTED
+Green background — payment sent to owner
+Service Check
+NOT INCLUDED
+Gray banner shown in place of a form when the property contract does not include the requested service
+1.4 Global Layout Structure (AdminLTE)
+Every authenticated page (except the tenant portal) uses the AdminLTE 3 shell. The shell has four fixed regions:
+Region
+Contents
+Top Navbar
+Left: hamburger toggle + system name. Right: notification bell (unseen audit count badge), logged-in user name + role badge, logout link.
+Left Sidebar
+Collapsible. Navy background. Menu items vary by role — each role sees only its permitted links. Active item highlighted in Steel Blue. Logo at top.
+Content Area
+Full-width white card area. Every page starts with a breadcrumb bar (e.g. Properties > Al-Noor > Units) and a page title row with action buttons on the right.
+Footer
+Minimal. System name + version. Not sticky.
+1.5 Sidebar Navigation by Role
+Role
+Sidebar Links
+ADMIN
+Dashboard · Properties · Tenants · Finance (Invoices, Payments, Settlements) · Contracts · Maintenance · Reports · Audit Log · Users · Settings
+MANAGER
+Dashboard · Properties · Tenants · Finance (Invoices, Payments) · Maintenance · Reports
+STAFF
+Dashboard · Record Payment · Maintenance Tickets
+OWNER
+Dashboard · My Contract · My Properties (read-only) · My Settlements · Reports (own properties)
+TENANT
+Separate portal at /tenant/. Links: My Balance · Payment History · My Lease · Maintenance Requests
+1.6 HTMX Global Patterns
+These patterns are used consistently throughout the system. Developers should implement them once as base templates and reuse.
+Modal pattern: hx-get fires on button click, loads a Django partial HTML form into a Bootstrap modal div (#modal-container). On form submit, hx-post sends data; success swaps the target table row or list. The modal closes via Alpine.js x-data toggle.
+Live fetch pattern: hx-trigger='change' on a <select> fires hx-get to load related data into a #detail-panel div below the dropdown. Used on payment form (tenant select → loads balance), invoice form (lease select → loads period info).
+Toast notifications: Every HTMX response includes an HX-Trigger header with a toast event. Alpine.js listens and shows a temporary success/error toast in the top-right corner. Auto-dismisses after 3 seconds.
+Inline row update: After editing a table row, HTMX swaps only that row using hx-swap='outerHTML' hx-target='closest tr'. No full page reload.
+Confirm delete: Alpine.js x-data shows an inline confirmation prompt on the same row before sending hx-delete. No browser confirm() dialog.
+Loading indicator: Every HTMX button shows htmx-indicator class spinner during fetch. AdminLTE's overlay spinner used for full-panel fetches.
+Global error handler: A single Alpine.js listener on document.body for htmx:responseError catches all HTMX 4xx/5xx failures. Fires a red toast: 'Something went wrong. Please try again.' with the HTTP status code. Implemented once in base.html — covers every page automatically. No per-page error handling needed.
+1.7 Implementation Decisions (from Technical Audit)
+The following decisions were finalised after reviewing an external technical audit. They are documented here so all three members implement consistently.
+Decision
+Rule
+CNIC storage vs display
+DB stores 13 raw digits in CHAR(13) — no dashes, no spaces. Django form clean_cnic() strips dashes before saving. A template filter cnic_display formats 13 digits as XXXXX-XXXXXXX-X for all UI display. The PDF receipt uses the formatted version. Never store dashes.
+BEFORE UPDATE trigger
+The existing INSERT trigger on leases_lease only fires on new rows. Add a matching BEFORE UPDATE trigger: if NEW.is_active = 1 AND OLD.is_active = 0, check that no other active lease exists for that unit. Prevents reactivating an old lease that would create two active leases.
+System actor in audit log
+actor_id is already nullable in the schema. Convention: NULL actor = automated system action (cron jobs, lease expiry checks, notification sends). The log_action() helper accepts actor=None. Dashboard displays NULL actor as System in italic gray text.
+Property hard delete (by design)
+RESTRICT on Property/Unit delete is intentional. A property with any lease history must never be hard-deleted. Instead: add a status field to properties_property (ACTIVE / ARCHIVED) in Phase 2. Archived properties are hidden from active lists but all historical data is preserved.
+account_balance cache
+The cached account_balance field is updated atomically on every payment save and invoice creation. It is used only for fast UI lookups. The B=(P×M)−ΣR formula computed in Django annotations is always the source of truth for reports and balance displays. If they ever diverge, the formula wins.
+Service-awareness checks
+Before any service-gated action (maintenance ticket creation, settlement generation, lease PDF), call contracts.services.property_has_service(property_id, service_slug). If False, return an HTMX partial showing a 'Service not included in this property contract' banner — never a 404 or silent failure. Slugs: tenant-management, maintenance, legal, financial-reporting, dedicated-manager.
+Contract layer coupling
+owner_id stays on properties_property — do not remove it. ContractProperty sits alongside as the commercial layer. Phase 1 data migration: on first Phase 2 migrate, a RunPython data migration auto-creates a default ACTIVE contract for every existing owner, enrolls all their properties, and assigns all services. This keeps the system operational immediately after migration with no manual setup.
+Document storage
+Individual FileField per model. Four document fields across existing models: OwnerContract.agreement_document (scanned signed agreement PDF, uploaded by staff), Payment.proof_document (bank slip or transfer screenshot, optional), MaintenanceTicket.cost_document (vendor invoice or repair receipt, optional when resolving), MonthlySettlement.remittance_proof (bank transfer confirmation, optional when marking remitted). Tenant documents handled by id_document field and Phase 3 vault. Accepted types: PDF, JPG, PNG. Max 10MB per file. Storage path: MEDIA_ROOT/documents/app/year/month/. Files always served via a Django view with @login_required and ownership check -- never via direct MEDIA_URL.
+2. Authentication
+PAGE A1  ·  /accounts/login/
+Login Page
+Access:   ALL  
+Overview
+The only page accessible without authentication. All other URLs redirect here if the session is not active.
+The design is intentionally minimal — a centered card on a navy background. No sidebar, no navbar. The system name and logo appear above the card.
+On successful login, Django's role middleware reads request.user.role and redirects to the appropriate dashboard: /dashboard/ for Admin/Manager, /owner/dashboard/ for Owner, /staff/dashboard/ for Staff, /tenant/dashboard/ for Tenant.
+Layout & Components
+Component / Area
+Description
+Full-page navy background
+No sidebar or navbar. Matches AdminLTE login layout.
+Centered login card
+White card, 400px wide. Drop shadow. System logo + name at top of card.
+Email / Username field
+Single text input. Labelled 'Email'. Autofocus on page load.
+Password field
+Password input with show/hide toggle (Alpine.js x-show).
+Login button
+Full-width Steel Blue button. Shows spinner (htmx-indicator) on submit.
+Error message area
+Red alert box below the button. Shows 'Invalid credentials' or 'Account inactive'. Rendered server-side, not a toast.
+Session timeout notice
+If redirected due to session expiry, a yellow banner appears above the card: 'Your session expired. Please log in again.'
+User Actions & Outcomes
+Action
+Trigger
+Result
+Submit credentials
+Click Login / press Enter
+Django authenticates. If valid → redirect by role. If invalid → page re-renders with error message.
+Show/hide password
+Click eye icon
+Alpine.js toggles input type between password and text.
+Idle session returns
+User revisits any URL after 30min idle
+Middleware detects expired session, redirects to /login/?next=<original_url>. After login, redirects back to original URL.
+HTMX / Alpine.js Interactions
+No HTMX on login — full page form POST is correct here. Session must be established server-side before any HTMX interaction is meaningful.
+3. Dashboards
+Each role lands on a different dashboard. They share the same AdminLTE shell but show different KPI cards, charts, and panels. All KPI values are computed dynamically from the DB — nothing is hardcoded.
+PAGE D1  ·  /dashboard/
+Admin & Manager Dashboard
+Access:   ADMIN    MANAGER  
+Overview
+The primary operational control centre. Shows a full system-wide health snapshot. Admin sees everything; Manager sees the same view (no user management link).
+The page is composed of four rows: KPI cards at top, then a two-column row (revenue chart left, recent audit log right), then a third row (maintenance open tickets + lease expiry warnings), then the vacancy table at bottom.
+Layout & Components
+Component / Area
+Description
+KPI Row — 4 cards
+Card 1: Total Properties (count). Card 2: Occupancy Rate % (from v_property_occupancy view). Card 3: Rent Collected This Month (SUM payments this calendar month). Card 4: Overdue Balances (count of UNPAID invoices past due_date).
+KPI Row — 4 cards (row 2)
+Card 5: Vacant Units (count). Card 6: Open Maintenance Tickets (count). Card 7: Leases Expiring in 30 days (count). Card 8: Active Tenants (count).
+KPI Row — 2 cards (row 3, new)
+Card 9: Active Owner Contracts (count). Card 10: Pending Settlements (count — amber if > 0, indicating settlements generated but not yet remitted to owners).
+Monthly Revenue Chart
+Bar chart via Chart.js. X-axis: last 6 months. Y-axis: PKR collected. Data endpoint: /dashboard/chart/revenue/ returns JSON. Renders after page load.
+Recent Audit Log panel
+Right column. Shows last 10 AuditLog entries. Each row: timestamp, actor name, action badge, description. 'View All' link to /audit/. Unseen rows have a light blue left border.
+Open Maintenance Tickets panel
+Bottom-left. DataTable: unit, title, urgency badge, status badge, assigned to, age in days. 'View All' button.
+Lease Expiry Warnings panel
+Bottom-right. Lists leases where end_date is within 30 days. Shows tenant name, unit, days remaining. Amber row highlight under 14 days. Red under 7 days.
+Vacancy Table
+Full-width at bottom. One row per property. Columns: Property, Location, Total Units, Occupied, Vacant, Maintenance, Occupancy %. Expandable to show unit-level detail.
+Notification bell (navbar)
+Badge count = unseen AuditLog rows. Dropdown shows last 5 unseen entries with 'Mark all seen' button.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Mark audit entry seen
+Click notification bell → click entry
+HTMX hx-post marks seen=True. Badge count decrements without page reload.
+Navigate to overdue invoices
+Click 'Overdue Balances' KPI card
+Redirects to /finance/invoices/?status=UNPAID&overdue=true (pre-filtered)
+Navigate to expiring leases
+Click 'Expiring Leases' KPI card
+Redirects to /tenants/?lease_expiring=30
+Refresh revenue chart
+Month selector above chart
+HTMX hx-get fetches new JSON data. Chart.js updates in place.
+Expand property vacancy row
+Click property row
+Alpine.js x-show reveals unit-level breakdown inline.
+HTMX / Alpine.js Interactions
+Revenue chart data: hx-get='/dashboard/chart/revenue/?months=6' on page load. Response is JSON, processed by Chart.js. No page reload.
+Mark-seen: hx-post='/audit/seen/<id>/' hx-swap='none'. HX-Trigger response fires a badge-decrement event that Alpine.js handles.
+Lease expiry panel: Loaded via hx-get='/dashboard/partials/expiry/' on page load with htmx-indicator overlay. Refreshes every 5 minutes via hx-trigger='load, every 300s'.
+PAGE D2  ·  /owner/dashboard/
+Owner Dashboard
+Access:   OWNER  
+Overview
+Read-only portfolio and business-relationship view. All queries scoped to the owner's own contract and properties. The owner cannot see other owners' data.
+Layout: KPI cards → Contract summary card → Revenue chart + Settlement panel (two-column) → My Properties table → Expiring Leases → Reports quick links.
+Layout & Components
+Component / Area
+Description
+KPI Row — 4 cards
+My Properties count · My Occupancy Rate · My Rent Collected This Month (gross, before commission) · My Overdue Balances — all filtered to own properties.
+Contract Summary card
+Displayed prominently below KPIs. Shows: Package name badge · Commission Rate (e.g. 7.5%) · Services included as icon pills (Tenant Mgmt · Maintenance · Financial Reporting etc.) · Contract start date · T&C version and date signed (as logged by staff) · 'Download Signed Agreement' button (if agreement_document uploaded) · 'View Full Contract' link → CO3.
+Latest Settlement card
+Shows the most recent MonthlySettlement: period, gross rent, commission deducted (highlighted in amber), net remittance (highlighted in green), status badge. 'View All Settlements' link → SE2.
+Revenue Chart
+Bar chart filtered to own properties. Two bars per month: Gross Collected (navy) vs Net After Commission (teal). Makes the commission deduction visually clear.
+My Properties Table
+Columns: Property · Location · Units · Occupancy % · Monthly Expected Rent · Commission (calculated from rate) · Net to Owner. Read-only — no edit/delete buttons.
+Expiring Leases panel
+Filtered to own units. Same amber/red colour logic as admin view.
+Reports quick links
+Three cards: Monthly Payments · Outstanding Balances · My Settlements — all pre-filtered to own properties.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download signed agreement
+Click 'Download Signed Agreement' in contract card
+Django view serves the scanned PDF file with login and ownership check. Returns 404 if no document uploaded yet.
+View full contract
+Click 'View Full Contract' in contract card
+Navigates to CO3 — owner contract detail page.
+View all settlements
+Click 'View All Settlements'
+Navigates to SE2 — owner settlements list.
+View property detail
+Click property name in table
+Navigates to /owner/properties/<id>/ — read-only unit list for that property.
+Open report
+Click report quick link card
+Navigates to the respective report page pre-filtered to own properties.
+HTMX / Alpine.js Interactions
+Contract card: Loaded via hx-get='/owner/dashboard/partials/contract/' on page load.
+Revenue chart: Two-dataset Chart.js bar chart. Data endpoint: /owner/dashboard/chart/revenue/ returns {month, gross, net} list. Net = gross × (1 - commission_rate).
+Settlement card: hx-get='/owner/dashboard/partials/latest-settlement/' returns the most recent settlement partial.
+PAGE D3  ·  /staff/dashboard/
+Staff Dashboard
+Access:   STAFF  
+Overview
+Simplified operational dashboard. Staff only sees what they need for their daily tasks: recording payments and updating maintenance tickets.
+No financial reports, no tenant management, no property management.
+Layout & Components
+Component / Area
+Description
+KPI Row — 3 cards
+Payments Recorded Today (by this staff member) · Open Tickets Assigned to Me · Tickets Resolved This Week.
+Quick Action: Record Payment
+Prominent blue button at top of content area. Navigates directly to /finance/payments/new/.
+My Assigned Tickets panel
+DataTable of maintenance tickets where assigned_to_id = request.user.id. Columns: unit, title, urgency, status, age. Status update button inline.
+Recent Payments by Me
+List of last 10 payments recorded by this staff member. Invoice number, tenant, amount, date. Read-only.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Record payment
+Click 'Record Payment' button
+Navigates to payment form.
+Update ticket status
+Click status button in assigned tickets table
+HTMX modal loads status update form. On save, row updates inline.
+HTMX / Alpine.js Interactions
+Ticket status update: hx-get='/maintenance/<id>/update/' loads a minimal modal with status dropdown + cost field. hx-post saves and swaps the table row.
+4. Properties Module
+Accessible by Admin and Manager only. Owners have a separate read-only view at /owner/properties/.
+PAGE P1  ·  /properties/
+Properties List
+Access:   ADMIN    MANAGER  
+Overview
+Master inventory of all properties in the system. This is the starting point for all property-related work.
+Displayed as a card grid rather than a plain table — each property gets its own card showing key stats at a glance. A DataTable list view is available via a toggle.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Properties' title on left. 'Add Property' button (Steel Blue) on right.
+View toggle
+Two icon buttons: grid view and list view. Alpine.js x-show toggles between them. Default: grid.
+Property cards (grid view)
+Each card: Property Name (bold), Location badge, address line, 3 mini-stats (Total Units · Occupied · Vacant), Occupancy % progress bar, Owner name, two action buttons (Edit, View Units).
+Property table (list view)
+DataTable. Columns: Name, Location, Owner, Total Units, Occupied, Vacant, Occupancy %, Actions. Sortable. Searchable. CSV/PDF export buttons.
+Empty state
+If no properties exist: illustration + 'No properties yet. Add your first property.' with a large Add button.
+Search/filter bar
+Text search by name/location. Dropdown filter by owner (Admin only). Applied via HTMX — results update without page reload.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Add property
+Click 'Add Property' button
+HTMX modal loads Add Property form (name, address, location dropdown, owner dropdown for Admin).
+Edit property
+Click Edit button on card/row
+HTMX modal loads Edit form pre-populated with current values.
+View units
+Click 'View Units' or property name
+Navigates to /properties/<id>/units/ (Property Detail page P2).
+Delete property
+Not available if units exist
+Disabled button with tooltip: 'Remove all units before deleting this property.'
+Search
+Type in search box
+hx-get fires after 300ms debounce, partial re-renders the card grid.
+HTMX / Alpine.js Interactions
+Add/Edit modal: hx-get='/properties/add/' or '/properties/<id>/edit/' into #modal-container. On success, hx-target='#property-grid' swaps in the updated card list.
+Search debounce: Alpine.js x-model on search input + $watch with 300ms setTimeout before firing hx-get.
+PAGE P2  ·  /properties/<id>/units/
+Property Detail — Units List
+Access:   ADMIN    MANAGER  
+Overview
+Drills into a single property and shows all its units. This is where individual units are managed.
+Layout: breadcrumb at top (Properties > Property Name), property summary bar, then the units section.
+Layout & Components
+Component / Area
+Description
+Property summary bar
+Horizontal bar below breadcrumb. Shows: Property Name, Address, Location, Owner, Total Units, Occupancy Rate. Edit button on right.
+Units section header
+'Units' heading on left. 'Add Unit' button on right.
+Units table
+DataTable. Columns: Unit Number, Type badge, Bedrooms, Monthly Rent (PKR), Status badge, Actions (Edit | View Tenant | Maintenance History).
+Status badge rules
+VACANT = green. OCCUPIED = blue with tenant name as tooltip. MAINTENANCE = orange with active ticket count as tooltip.
+Unit-level occupancy bar
+A mini summary above the table: X Vacant · Y Occupied · Z Maintenance — colour-coded counts.
+Empty state
+If no units: 'No units registered for this property. Add your first unit.'
+User Actions & Outcomes
+Action
+Trigger
+Result
+Add unit
+Click 'Add Unit'
+HTMX modal: unit_number, unit_type select, bedrooms, monthly_rent. On save, new row appended to table.
+Edit unit
+Click Edit on row
+HTMX modal pre-populated. Monthly rent changes do NOT affect existing active leases automatically — a note in the form says so.
+View tenant
+Click 'View Tenant' on OCCUPIED row
+Navigates to /tenants/<tenant_id>/ (Tenant Detail page T2).
+Maintenance history
+Click 'Maintenance' on row
+HTMX loads a side panel showing all tickets for this unit, sorted by date desc.
+HTMX / Alpine.js Interactions
+Maintenance side panel: hx-get='/maintenance/unit/<id>/' hx-target='#side-panel' hx-swap='innerHTML'. Side panel slides in via Alpine.js transition.
+5. Tenants Module
+PAGE T1  ·  /tenants/
+Tenants List
+Access:   ADMIN    MANAGER  
+Overview
+Master list of all active tenants with their current financial standing. This page is used daily by managers to monitor payment status.
+The most analytically important page after the dashboard. Every row shows the outstanding balance, so overdue tenants are immediately visible.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Tenants' on left. 'Add Tenant' button on right.
+Filter bar
+Tabs: All · Active · Inactive. Plus: search by name/CNIC/phone. Dropdown: filter by property. Dropdown: filter by balance status (Any / Overdue / Paid Up).
+Tenants DataTable
+Columns: Tenant Name | Unit (property + unit number) | Monthly Rent | Outstanding Balance | Last Payment Date | Status badge | Actions.
+Outstanding Balance cell
+Green text if 0 or credit. Red bold text if positive debt. Shows PKR amount. Tooltip shows formula breakdown: (PKR X × Y months) − PKR Z paid.
+Last Payment cell
+Date in DD MMM YYYY format. If no payments ever: 'Never' in red italic. If > 30 days ago: amber text.
+Row hover
+Full row highlights on hover. 'View Detail' overlay appears.
+Export buttons
+DataTables: CSV, Excel, PDF, Print.
+Inactive tenant toggle
+Clicking 'Inactive' tab shows soft-deleted tenants in gray rows. Their data is read-only.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Add tenant
+Click 'Add Tenant'
+Navigates to /tenants/add/ (full page — not modal, too many fields).
+View tenant detail
+Click tenant name or row
+Navigates to /tenants/<id>/ (Tenant Detail T2).
+Quick record payment
+Click payment icon in Actions
+HTMX modal opens payment form pre-filled with this tenant's unpaid invoice.
+Filter by status
+Click tab or dropdown
+hx-get refetches table with filter params. URL updates via pushState.
+Search
+Type in search box
+300ms debounce HTMX search. Matches full_name, cnic, phone.
+HTMX / Alpine.js Interactions
+Balance calculation: Computed in Django queryset annotation using the B=(P×M)−ΣR formula, not stored — always fresh.
+Quick payment modal: hx-get='/finance/payments/new/?tenant=<id>' pre-fills the tenant field and loads their invoice data automatically.
+PAGE T2  ·  /tenants/add/
+Add Tenant (Full Page)
+Access:   ADMIN    MANAGER  
+Overview
+Full-page form because the tenant admission process has many fields and creates multiple records atomically (Tenant + Lease + Unit status update).
+Split into two visual sections on the same page: Section A (Tenant Personal Details) and Section B (Lease & Unit Assignment). Both sections submit together as one atomic transaction.
+This is not a modal — the complexity justifies a dedicated page.
+Layout & Components
+Component / Area
+Description
+Breadcrumb
+Tenants > Add New Tenant
+Section A — Tenant Details
+Fields: Full Name · Email · Phone (auto-formats to +92) · CNIC (input accepts both raw digits or dashes; clean_cnic() strips to 13 digits before saving; displayed as XXXXX-XXXXXXX-X everywhere) · Profession · Emergency Contact (name + phone) · ID Document upload.
+Section B — Lease & Unit
+Fields: Property dropdown (all properties) → triggers unit dropdown load. Unit dropdown (only VACANT units for selected property) · Lease Start Date · Lease End Date (optional — 'Month to Month' checkbox) · Agreed Monthly Rent (pre-fills from unit default, editable) · Deposit Amount · Deposit Paid checkbox.
+Unit availability note
+Below unit dropdown: a small info box shows: 'This unit has been vacant since <date>.' Appears after unit selection via HTMX.
+Proration notice
+Below Lease Start Date: if the start date is not the 1st of the month, a yellow info box appears: 'First invoice will be prorated: PKR X for Y days remaining in this month.' The prorated amount is calculated as (days_remaining / days_in_month) × monthly_rent. Computed live via Alpine.js on date change.
+Lease notes field
+Optional textarea for special terms.
+Submit row
+Two buttons: 'Save & Add Tenant' (primary) and 'Cancel' (link back to tenant list). Save button shows spinner while processing.
+Validation summary
+If the form fails server-side validation (e.g. duplicate CNIC), a red alert box appears at the top of the form listing all errors.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Select property
+Choose from property dropdown
+HTMX fetches vacant units for that property, populates unit dropdown.
+Select unit
+Choose from unit dropdown
+HTMX fetches unit detail: shows monthly_rent as suggested rent, and vacancy duration.
+Toggle Month-to-Month
+Check 'Month to Month' checkbox
+Alpine.js hides/disables end_date field.
+Submit form
+Click 'Save & Add Tenant'
+Full POST. Django wraps in atomic transaction. On success, redirects to /tenants/<new_id>/ with a success toast. On failure, re-renders form with errors.
+CNIC validation
+On blur from CNIC field
+Alpine.js formats the input and shows inline 'Already registered' error if CNIC exists (HTMX lookup).
+HTMX / Alpine.js Interactions
+Property → unit cascade: hx-get='/properties/units/?property=<id>&status=VACANT' triggered by hx-trigger='change' on property select. Replaces unit dropdown options.
+Unit info box: hx-get='/properties/units/<id>/info/' on unit select change. Renders a partial with rent + vacancy duration.
+CNIC duplicate check: hx-get='/tenants/check-cnic/?cnic=<value>' hx-trigger='blur' on CNIC input. Sends raw digits (dashes stripped by Alpine.js before the request). Returns inline error or green checkmark.
+Proration calculation: Alpine.js x-on:change on start_date input. If day != 1, calculates prorated amount client-side and shows the notice box. The same proration logic runs server-side in the invoice generation view for the actual first invoice amount.
+PAGE T3  ·  /tenants/<id>/
+Tenant Detail
+Access:   ADMIN    MANAGER  
+Overview
+The complete profile and financial history of a single tenant. This is the most information-dense page in the system.
+Layout: a two-column layout. Left column (40%): tenant profile card + lease card + documents. Right column (60%): financial summary + invoice history table + payment history table + maintenance tickets.
+Layout & Components
+Component / Area
+Description
+Tenant Profile card (left)
+Avatar initials circle · Full Name · CNIC · Email · Phone · Profession · Emergency Contact · Admitted date · Status badge. Edit button at top right of card.
+Active Lease card (left)
+Unit (linked to P2) · Property · Monthly Rent · Start Date · End Date (or 'Month-to-Month') · Deposit paid status. 'Terminate Lease' button (red, confirmation required).
+Documents card (left)
+Document types: CNIC scan (from id_document set at admission), Signed Lease Agreement, NOC, Reference Letter, Other. Each row: document type badge · upload date · expiry date (amber if < 30 days, red if expired). Upload button. Download link. All files served via login-protected view.
+Financial Summary bar (right top)
+4 mini-KPI cards: Outstanding Balance · Total Paid (all time) · Monthly Rent · Months Active. Balance is red if positive debt, green if zero/credit.
+Invoices table (right)
+DataTable of all invoices for this tenant. Columns: Invoice No. · Period · Amount Due · Due Date · Status badge · Actions (Download PDF | Record Payment).
+Payments table (right)
+DataTable of all payments. Columns: Date · Invoice Ref · Amount · Method badge · Reference Code · Recorded By · Download Receipt.
+Maintenance Tickets (right)
+DataTable of all tickets for this tenant's units. Columns: Title · Urgency · Status · Assigned To · Created · Resolved.
+Action bar (top of page)
+Breadcrumb left. Right: 'Generate Invoice' · 'Record Payment' · 'Edit Tenant' · 'Renew Lease' buttons. Renew Lease button only shown if lease has an end_date (not month-to-month) and end_date is within 60 days or already passed.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Edit tenant
+Click 'Edit Tenant'
+HTMX modal loads edit form (personal details only — not lease).
+Generate invoice
+Click 'Generate Invoice'
+HTMX modal with month picker and auto-calculated amount_due (after credit). Shows duplicate warning if invoice exists for that month.
+Record payment
+Click 'Record Payment'
+HTMX modal pre-loaded with tenant's unpaid invoices.
+Download invoice PDF
+Click PDF icon in invoices table
+Opens /finance/invoices/<id>/pdf/ in new tab — Django renders WeasyPrint PDF.
+Download receipt PDF
+Click receipt icon in payments table
+Opens /finance/payments/<id>/receipt/ in new tab.
+Terminate lease
+Click 'Terminate Lease' button
+Alpine.js shows inline confirmation with date picker (termination date). On confirm, HTMX post. Unit reverts to VACANT. Tenant status = INACTIVE.
+Renew lease
+Click 'Renew Lease' button
+HTMX modal with 3 fields: New End Date · New Monthly Rent (pre-fills current rent) · Notes. On confirm: current lease is_active set to False, new lease created with same tenant + unit, unit stays OCCUPIED. Full lease history preserved. Audit log entry written.
+Upload document
+Click 'Upload Document' in docs card
+HTMX modal: document_type select · file picker · optional expiry date. PDF, JPG, PNG. Max 10MB. On save, new row appended to list.
+Upload signed lease
+Click 'Upload Signed Lease' shortcut
+Same modal pre-filled with type=SIGNED_LEASE. Prompt: 'Upload the physically signed copy of the lease agreement.'
+HTMX / Alpine.js Interactions
+Generate invoice modal: Loads period_month picker. hx-get='/finance/invoices/preview/?lease=<id>&month=<m>' shows projected amount_due after credit deduction before confirming.
+Terminate lease confirmation: Alpine.js x-data inline on the button. Shows a 'Are you sure?' panel with termination date input. hx-post on confirm.
+Renew lease modal: hx-get='/tenants/<id>/lease/renew/' into #modal-container. Form submits to hx-post='/tenants/<id>/lease/renew/'. On success, the Active Lease card (left column) swaps in the new lease details via hx-target='#lease-card' hx-swap='outerHTML'. Old lease row appears in a new 'Lease History' collapsed panel below the active lease card.
+6. Finance Module
+PAGE F1  ·  /finance/invoices/
+Invoices List
+Access:   ADMIN    MANAGER  
+Overview
+Full ledger of all invoices in the system. Used for bulk billing overview and locating specific invoices.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Invoices' on left. Two buttons on right: 'Generate Invoice' (single) and 'Bulk Generate' (steel blue with calendar icon).
+Filter bar
+Status filter tabs: All · Unpaid · Partial · Paid. Month picker (default: current month). Search by invoice number or tenant name.
+Invoices DataTable
+Columns: Invoice No. · Tenant · Unit · Period · Amount Due · Due Date · Status badge · Actions (PDF | Payment | Delete).
+Overdue row highlight
+Any UNPAID invoice past due_date is highlighted with a red left border on the row.
+Bulk Generate modal
+Opened by 'Bulk Generate' button. Contains: Month picker (default: next billing month) + a preview table showing all active tenants who do NOT yet have an invoice for that month (i.e. safe to generate for). Each row shows: Tenant Name · Unit · Monthly Rent · Credit (account_balance) · Projected Amount Due. Two action buttons: 'Generate All (N invoices)' and 'Cancel'. Skips tenants who already have an invoice for that month automatically.
+Bulk actions (row level)
+Checkbox column. Select multiple rows → 'Download PDFs' button appears. Generates a zip of selected invoice PDFs.
+Summary bar above table
+Shows: Total Invoices shown · Total Amount Due · Total Collected · Total Outstanding — computed from current filter.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Generate invoice (single)
+Click 'Generate Invoice'
+HTMX modal: select tenant (only those with active leases + no invoice this month) → auto-fills lease, period, amount_due. Confirm to save.
+Bulk generate
+Click 'Bulk Generate'
+HTMX modal loads preview table via hx-get='/finance/invoices/bulk-preview/?month=<m>'. User reviews the list and clicks 'Generate All'. Django loops through eligible leases in a single atomic transaction — all invoices created or none. On success, table refreshes with new rows. Toast shows: 'N invoices generated for Month YYYY.'
+Bulk generate — partial failure
+If one invoice fails (e.g. duplicate constraint)
+Transaction rolls back entirely. Error message shows which tenant caused the conflict. Manager resolves individually then retries bulk.
+Download PDF
+Click PDF icon
+Opens invoice PDF in new tab.
+Record payment on invoice
+Click payment icon
+HTMX modal pre-loaded with this invoice.
+Delete invoice
+Click delete icon
+Only available for UNPAID invoices. Alpine.js inline confirm. HTMX delete removes row.
+Filter by month
+Use month picker
+hx-get refetches table. URL updates.
+HTMX / Alpine.js Interactions
+Invoice generation preview: hx-get='?preview=true&lease=<id>&month=<m>' returns the projected amount_due (after applying tenant.account_balance) before the invoice is saved.
+Bulk preview: hx-get='/finance/invoices/bulk-preview/?month=<m>' triggered on month change in the bulk modal. Returns a pre-rendered HTML table of eligible tenants. Updates without closing the modal.
+PAGE F2  ·  /finance/payments/new/
+Record Payment (Full Page)
+Access:   ADMIN    MANAGER    STAFF  
+Overview
+The most-used data entry page in the system. Staff members will use this multiple times daily.
+Designed for speed: selecting a tenant immediately loads all the information needed to record the payment without any manual lookups.
+Layout: two-column. Left (40%): the entry form. Right (60%): live tenant financial summary panel that updates when a tenant is selected.
+Layout & Components
+Component / Area
+Description
+Left — Payment Form
+Fields: Tenant (HTMX server-side search input — type 3+ characters) · Invoice (auto-loaded, UNPAID/PARTIAL only) · Amount Paid · Payment Method (CASH/BANK_TRANSFER/EASYPAISA/JAZZCASH/CHEQUE) · Reference Code (optional) · Date Paid (default today) · Payment Proof (FileField, optional) · Notes.
+Payment Proof upload
+Below the file input: italic note: 'Attach a screenshot or scan of the payment confirmation. PDF, JPG, PNG. Max 10MB. Recommended for bank transfers and mobile money payments. Not required for cash.' Label shows (Optional).
+Right — Live Summary Panel
+Initially shows placeholder text 'Select a tenant to see their balance.' After tenant selected via HTMX: Tenant name · Unit · Monthly Rent · Outstanding Balance (large, coloured) · Months Payable · Total Paid to Date · Last Payment Date · All unpaid invoices listed with amounts.
+Amount suggestion buttons
+Below Amount Paid field: three quick-fill buttons: 'Full Invoice Amount' · 'Outstanding Balance' · 'Custom'. Alpine.js fills the amount input.
+Change calculation preview
+Below amount input: 'After this payment, outstanding balance will be: PKR X.' Updates live as amount is typed.
+Submit row
+'Record Payment' primary button. 'Cancel' link.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Select tenant
+Choose from tenant dropdown
+HTMX fetches tenant financial summary, loads invoice dropdown for that tenant, renders right panel.
+Select invoice
+Choose from invoice dropdown
+HTMX updates amount suggestion buttons with invoice's remaining balance.
+Click amount suggestion
+Click quick-fill button
+Alpine.js sets amount input value. Preview balance recalculates.
+Type custom amount
+Type in Amount Paid
+Alpine.js recalculates and shows preview balance instantly.
+Submit
+Click 'Record Payment'
+Full POST with multipart/form-data. Atomic transaction: updates invoice, updates tenant.account_balance, creates Payment record (including proof_document if uploaded), creates audit log entry, queues notification. Redirects to receipt page.
+HTMX / Alpine.js Interactions
+Tenant search input: hx-get='/finance/payments/tenant-search/?q=<query>' hx-trigger='keyup changed delay:300ms' hx-target='#tenant-results'. After 3 chars, returns a small dropdown list of matching tenants. Clicking a result sets a hidden tenant_id field and fires the summary fetch.
+Tenant select → summary: After tenant is selected from search results, hx-get='/finance/payments/tenant-summary/?tenant=<id>' renders the right panel partial.
+Live balance preview: Alpine.js x-data calculates (outstanding - typed_amount) in real time. No HTMX needed — pure client-side math.
+PAGE F3  ·  /finance/payments/
+Payments List
+Access:   ADMIN    MANAGER  
+Overview
+Complete payment ledger. Every payment transaction ever recorded.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Payments' on left. 'Record Payment' button on right.
+Filter bar
+Date range picker (from/to). Search by tenant name, invoice number, or reference code. Payment method filter dropdown.
+Payments DataTable
+Columns: Date · Invoice No. · Tenant · Unit · Amount · Method badge · Reference Code · Proof · Recorded By · Actions (Receipt PDF | View Proof | Edit | Delete).
+Proof column
+Paperclip icon if proof_document uploaded (click to download). Amber 'No proof' badge for BANK_TRANSFER, EASYPAISA, JAZZCASH payments with no document. Gray dash for CASH and CHEQUE (proof not expected).
+Summary bar
+Total payments shown · Total PKR collected in selected range.
+Edit payment
+Only available for payments recorded today (same day correction only).
+Delete payment
+Admin only. Requires confirmation. Reverses account_balance update.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download receipt
+Click receipt icon
+Opens /finance/payments/<id>/receipt/ PDF in new tab.
+Edit payment
+Click edit (same-day only)
+HTMX modal with amount, method, reference editable.
+Filter by date range
+Use date pickers
+hx-get updates table.
+PAGE F4  ·  /finance/payments/<id>/receipt/
+Payment Receipt (PDF View)
+Access:   ADMIN    MANAGER    STAFF    TENANT  
+Overview
+A Django view that renders a WeasyPrint PDF directly. Not an HTML page the user navigates to — it opens in a browser tab or downloads.
+Design uses the system's brand colours from system settings (org_name, logo, contact_email).
+Layout & Components
+Component / Area
+Description
+Receipt header
+System logo (from settings) on left. 'PAYMENT RECEIPT' title on right. Receipt number auto-generated.
+Tenant section
+Tenant full name · CNIC · Unit · Property · Location.
+Payment details section
+Invoice Number · Period · Amount Paid · Payment Method · Reference Code · Date Paid · Recorded By.
+Balance section
+Invoice Amount Due · Amount Paid · Remaining Balance on Invoice · Overall Outstanding Balance (B formula result).
+Proof status line
+Single line below balance: 'Payment proof on file' with checkmark (shown if proof_document exists). Omitted entirely if no proof. Keeps the receipt clean while providing verification note when relevant.
+Footer
+Thank you note · contact email/phone from system settings · 'This is a computer-generated receipt.'
+Watermark
+Light 'PAID' diagonal watermark across the receipt body if invoice status = PAID.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Generate receipt
+HTMX/link triggers this view
+Django renders HTML template, WeasyPrint converts to PDF bytes, response with Content-Disposition: attachment.
+7. Maintenance Module
+PAGE M1  ·  /maintenance/
+Maintenance Tickets List
+Access:   ADMIN    MANAGER    STAFF  
+Overview
+Admin and Manager see all tickets across the system. Staff see only tickets assigned to them. The page adjusts its content based on the logged-in role — same URL, different queryset.
+Service-awareness: Before a ticket is submitted for any unit, the system checks whether the property's active contract includes the maintenance service (slug: maintenance). If not included, the 'New Ticket' button still renders but clicking it shows a banner: 'Maintenance management is not included in this property contract. Contact admin to upgrade.' The ticket is not created.
+Layout & Components
+Component / Area
+Description
+Page title row
+Admin/Manager: 'All Maintenance Tickets' + 'New Ticket' button. Staff: 'My Assigned Tickets' (no new ticket button).
+Filter bar
+Status tabs: All · Open · In Progress · Resolved · Closed. Urgency filter: All / Critical / High / Medium / Low. Property filter (Admin/Manager only). Assigned to filter (Admin/Manager only).
+Tickets DataTable
+Columns: Title · Unit (property + unit number) · Urgency badge · Status badge · Reported By · Assigned To · Age (days) · Actions.
+Critical row highlight
+CRITICAL urgency rows have a red left border. Rows with status OPEN + age > 7 days have an amber 'Aging' badge.
+Bulk assign
+Admin/Manager: checkbox select multiple OPEN tickets → 'Assign To' dropdown appears → assigns all to selected staff member.
+Ticket count summary
+Above table: Open (count, red) · In Progress (count, amber) · Resolved This Week (count, green).
+User Actions & Outcomes
+Action
+Trigger
+Result
+Open ticket detail
+Click ticket title
+Navigates to /maintenance/<id>/ (Ticket Detail M2).
+Quick status update
+Click Status badge (Staff)
+HTMX modal with status + cost field. Staff can only set IN_PROGRESS or RESOLVED.
+Add new ticket
+Click 'New Ticket' (Admin/Manager)
+HTMX modal: unit select, title, description, urgency, optional assign.
+Bulk assign
+Select + assign dropdown
+HTMX post. Rows update inline with new assignee.
+HTMX / Alpine.js Interactions
+Quick status update: hx-get='/maintenance/<id>/status/' loads a 2-field modal (status select, cost input). hx-post saves, hx-swap='outerHTML' hx-target='closest tr' updates the row.
+PAGE M2  ·  /maintenance/<id>/
+Ticket Detail
+Access:   ADMIN    MANAGER    STAFF  
+Overview
+Full view of a single ticket. Staff can update their assigned tickets. Admin/Manager can do everything.
+Layout & Components
+Component / Area
+Description
+Ticket header card
+Title (large) · Unit + Property (linked) · Urgency badge · Status badge · Created date · Age in days.
+Description section
+Full description text. Photo attachment if uploaded (displayed as thumbnail, click to expand).
+Assignment section
+Reported By · Assigned To (editable dropdown for Admin/Manager). Notes field.
+Timeline section
+Chronological log of status changes: 'Opened by X on date', 'Assigned to Y on date', 'Status changed to IN_PROGRESS on date', 'Resolved on date'. Cost logged at resolution.
+Action buttons
+Admin/Manager: Edit · Assign · Change Status · Close · Delete. Staff: Change Status only (if assigned to them).
+User Actions & Outcomes
+Action
+Trigger
+Result
+Change status
+Click 'Change Status'
+HTMX modal with: status dropdown · cost field (unlocked when RESOLVED) · Cost Document upload (shown when RESOLVED — upload vendor invoice or repair receipt, optional). On save, timeline appends new entry with cost and paperclip icon if document uploaded.
+View cost document
+Click paperclip icon in RESOLVED timeline entry
+Django view serves the cost_document file. Admin and Manager only.
+Assign ticket
+Click 'Assign'
+HTMX modal with staff dropdown. On save, assigned_to updates.
+Close ticket
+Click 'Close'
+HTMX inline confirm. Sets status=CLOSED. If unit was in MAINTENANCE due to this critical ticket, unit.status reverts to OCCUPIED. A Notification record is created prompting the tenant to submit feedback via the tenant portal (channel=SMS, status=SIMULATED — content: 'Your maintenance request has been resolved. Please rate the service in your tenant portal.')
+View feedback
+Feedback badge in timeline (Phase 3)
+Once the tenant submits a MaintenanceFeedback record, the ticket timeline shows: 'Tenant rated this: ★★★★☆ — [comment]'. Visible to Admin and Manager only.
+HTMX / Alpine.js Interactions
+Timeline append: On status change success, hx-swap='beforeend' hx-target='#timeline-list' appends the new entry without reloading the full page.
+Cost document upload: Status modal uses multipart/form-data POST. If cost_document provided, saved to MEDIA_ROOT/documents/maintenance/. Timeline entry renders with paperclip icon.
+8. Reports Module
+PAGE R1  ·  /reports/monthly-payments/
+Monthly Payments Report
+Access:   ADMIN    MANAGER    OWNER  
+Overview
+Answers the question: how much rent was collected in a given month? Owner sees only their properties.
+Print-optimized layout — clicking Print opens a stripped-down browser print view.
+Layout & Components
+Component / Area
+Description
+Filter row
+Month picker (default: current month). Property filter (Admin/Manager: all; Owner: own properties only). 'Generate Report' button.
+Report header (when generated)
+Org name + logo · 'Monthly Payments Report' title · Period: Month Year · Generated by: user name · Generated at: timestamp.
+Report table
+Columns: # · Date · Tenant Name · Unit · Invoice Number · Payment Method · Amount. Subtotals per property. Grand total at footer.
+Export buttons
+CSV · Excel · PDF (WeasyPrint) · Print.
+Summary cards above table
+Total Payments Count · Total PKR Collected · Properties Covered · Tenants Who Paid.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Generate report
+Click 'Generate Report'
+hx-get fetches report partial with the selected filters. Renders below the filter row.
+Export PDF
+Click PDF export
+GET /reports/monthly-payments/pdf/?month=X&property=Y — Django renders PDF.
+Print
+Click Print
+JavaScript opens a new window with print-CSS-only version of the table.
+HTMX / Alpine.js Interactions
+Report data: hx-get='/reports/monthly-payments/data/?month=<m>&property=<p>' returns a pre-rendered HTML table partial. Fast — uses DB index on date_paid.
+PAGE R2  ·  /reports/balances/
+Outstanding Balances Report
+Access:   ADMIN    MANAGER    OWNER  
+Overview
+Answers: who owes money right now and how much? This is the accounts receivable view for the landlord.
+Uses the v_active_tenant_summary DB view and the B=(P×M)−ΣR formula.
+Layout & Components
+Component / Area
+Description
+Filter row
+Property filter. Balance filter: All / Overdue Only / Paid Up Only. Sort by: Balance (highest first default).
+Report header
+Same org branding as R1.
+Report table
+Columns: # · Tenant Name · Unit · Monthly Rate · Months Active · Total Expected · Total Paid · Outstanding Balance · Last Payment. Balance column: red if > 0, green if 0 or negative (credit).
+Summary at bottom
+Total Expected (all tenants) · Total Collected · Total Outstanding · Number of Tenants in Arrears.
+Export buttons
+CSV · Excel · PDF · Print.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Generate report
+Change filter + click Generate
+hx-get fetches data partial.
+Click tenant name
+Click name in report
+Navigates to /tenants/<id>/ (Tenant Detail).
+Export PDF
+Click PDF
+Rendered via WeasyPrint, includes system branding.
+9. Audit, Users & Settings
+PAGE AU1  ·  /audit/
+Audit Log
+Access:   ADMIN  
+Overview
+Full immutable activity log. Admin eyes only. Answers who did what and when across the entire system.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Audit Log' title. No add button — log is write-only from the system.
+Filter bar
+Date range · Actor filter (user dropdown) · Action type filter (TENANT_ADMITTED, PAYMENT_RECORDED, etc.).
+Audit DataTable
+Columns: Timestamp · Actor · Action badge · Description · Seen (tick/dot). Sorted by timestamp desc.
+Seen/unseen indicator
+Unseen rows (seen=0) have a blue left border. Bulk 'Mark All Seen' button at top.
+Action badges
+Color-coded: green for creation events, blue for edits, red for deletions, amber for status changes.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Mark entry seen
+Click blue dot or 'Mark All Seen'
+HTMX post. Row border removed. Navbar badge decrements.
+Filter by actor
+Select actor from dropdown
+hx-get refetches table.
+HTMX / Alpine.js Interactions
+Mark seen: hx-post='/audit/<id>/seen/' hx-swap='none'. Alpine.js listens for success event and removes the left border class from the row.
+PAGE US1  ·  /accounts/users/
+User Management
+Access:   ADMIN  
+Overview
+Manage all system user accounts. Only Admin can access this page.
+Layout & Components
+Component / Area
+Description
+Users DataTable
+Columns: Name · Email · Role badge · Date Joined · Last Login · Active (toggle) · Actions (Edit | Deactivate).
+Add User button
+'Add User' top right.
+Role filter tabs
+All · Admin · Manager · Staff · Owner · Tenant.
+Active toggle
+Inline boolean toggle. Deactivating a user blocks their login without deleting their records.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Add user
+Click 'Add User'
+HTMX modal: name, email, password, role, phone. On save, row appended to table.
+Edit user
+Click Edit
+HTMX modal pre-populated. Password field only updates if filled in.
+Deactivate user
+Toggle Active switch
+HTMX post. Sets is_active=False. User's session is terminated immediately.
+Change role
+Edit user modal
+Changing role takes effect on user's next login (session is refreshed).
+HTMX / Alpine.js Interactions
+Active toggle: hx-post='/accounts/users/<id>/toggle-active/' hx-swap='none'. Alpine.js updates the toggle visual. Toast shows 'User deactivated.'
+PAGE SS1  ·  /settings/
+System Settings
+Access:   ADMIN  
+Overview
+Single-record configuration form. Changes are reflected across all templates immediately via the context processor.
+Layout & Components
+Component / Area
+Description
+Settings form sections
+Section 1 — Branding: Org name, logo upload (preview shown), contact email, contact phone. Section 2 — Financial: Currency symbol (PKR), Late fee % (applied after grace period), Grace period days. Section 3 — About: Rich text area for org description.
+Logo preview
+Current logo shown at 120px. 'Change Logo' button opens file picker. Preview updates via Alpine.js FileReader before saving.
+Save button
+Full-width 'Save Settings' button. Shows spinner on submit.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Logo preview
+Select file in file picker
+Alpine.js reads file with FileReader API, sets src on preview img — instant preview without upload.
+Save settings
+Click Save
+Standard POST. On success, context processor reloads settings into all templates. Success toast shown.
+HTMX / Alpine.js Interactions
+Logo live preview: Alpine.js x-on:change on file input reads the file and sets a data-url on the preview img. No HTMX needed — pure client-side FileReader.
+10. Contracts & Settlements Module
+This module is the commercial layer that sits on top of the operational engine. It manages the formal business relationship between the property management company and property owners, including service agreements, commission tracking, and monthly financial settlements.
+Phase 2 addition. None of this touches Phase 1 models — ContractProperty and MonthlySettlement are additive only. A data migration auto-creates default contracts for all existing Phase 1 owners on first deploy.
+PAGE CO1  ·  /contracts/
+Contracts List
+Access:   ADMIN  
+Overview
+Master list of all owner management contracts in the system. Admin-only — Managers cannot access this module.
+This is the starting point for onboarding a new owner. An owner cannot use the system meaningfully until they have an ACTIVE contract.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Management Contracts' on left. 'New Contract' button on right.
+Filter tabs
+All · Draft · Active · Terminated. Default: Active.
+Contracts DataTable
+Columns: Owner Name · Package · Commission Rate · Services (icon pills) · Properties Enrolled · Contract Start · Contract End (or 'Rolling') · Status badge · T&C Signed (date or 'Pending') · Actions (View | Terminate).
+Agreement document indicator
+A paperclip icon in the row if OwnerContract.agreement_document is uploaded. Missing document shown as amber 'No scan on file' badge — reminder for staff to upload the scanned agreement.
+Service icon pills
+Small coloured icons in the Services column: T (Tenant Mgmt), M (Maintenance), L (Legal), F (Financial), D (Dedicated Manager). Grayed out if not included.
+Summary bar
+Total Active Contracts · Total Properties Under Management · Average Commission Rate.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Create contract
+Click 'New Contract'
+Navigates to CO2 contract creation form.
+View contract
+Click 'View' in actions
+Navigates to CO2 contract detail view.
+Terminate contract
+Click 'Terminate'
+Alpine.js inline confirm with termination date input. On confirm: contract status = TERMINATED, all ContractProperty records deactivated. Properties revert to unmanaged state. Tenant and lease data untouched.
+Filter by status
+Click tab
+HTMX refetches table.
+HTMX / Alpine.js Interactions
+Terminate confirm: Alpine.js x-data inline confirm. Warns: 'Terminating will remove all properties from this contract. Existing tenants and leases are not affected.' hx-post='/contracts/<id>/terminate/' on confirm.
+PAGE CO2  ·  /contracts/new/ or /contracts/<id>/
+Contract Detail / Create
+Access:   ADMIN  
+Overview
+Two modes: Create (new contract from scratch) and View/Edit (existing contract). The same page handles both — if a contract ID is in the URL, it loads in view mode with an Edit button.
+This is a full-page form — not a modal — because it has multiple sections and requires enrolling properties.
+Layout & Components
+Component / Area
+Description
+Breadcrumb
+Contracts > New Contract  or  Contracts > [Owner Name] Contract
+Section A — Owner & Package
+Owner dropdown (OWNER-role users only) · Package selector (radio cards: Basic / Standard / Premium / Custom) · Commission Rate field (pre-fills from package, editable for Custom) · Contract Start Date · Contract End Date (optional, 'Rolling' checkbox).
+Package radio cards
+Each package shown as a card: name, default commission %, list of included services. Selecting a package auto-checks the services below. Custom = no pre-selection.
+Section B — Services
+Checkbox list of all available Service records: Tenant Management · Maintenance · Legal · Financial Reporting · Dedicated Manager. Checked by default based on selected package. Individually toggleable for custom arrangements.
+Section C — Properties
+Multi-select list of properties where owner_id matches selected owner AND property has no other ACTIVE contract. Each row: property name, location, unit count. Checkbox to enrol.
+Section D — Agreement & T&C
+T&C version field (staff enters version string, e.g. v1.2) · Date signed field (date the owner physically signed, entered by staff) · Signed Agreement Upload (FileField — staff scans and uploads the signed PDF agreement). If no document uploaded, a yellow note shows: 'Upload the scanned signed agreement to complete this record.'
+Submit row
+'Save Contract' (saves with status=ACTIVE immediately) · 'Cancel' link.
+View mode
+Same layout but all fields read-only. Edit button unlocks editable fields (package, services, properties, end date — not commission rate if contract is ACTIVE). Audit log of changes shown at bottom.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Select owner
+Choose owner from dropdown
+HTMX fetches their uncontracted properties, populates Section C.
+Select package
+Click package radio card
+Alpine.js checks/unchecks service boxes to match the package. Commission rate field pre-fills.
+Select Custom
+Click Custom radio card
+All services unchecked. Commission rate field goes blank for manual entry.
+Enrol property
+Check property checkbox in Section C
+Alpine.js updates a running count: 'X properties selected'.
+Save contract
+Click 'Save Contract'
+Full POST. Creates OwnerContract (status=ACTIVE) + ContractService records + ContractProperty records. If agreement_document uploaded, file saved to MEDIA_ROOT/documents/contracts/. Redirects to CO2 view mode.
+Upload agreement later
+Click 'Upload Signed Agreement' in view mode
+HTMX modal with file picker. On upload, saves file and updates the agreement doc indicator in CO1.
+HTMX / Alpine.js Interactions
+Property list: hx-get='/contracts/available-properties/?owner=<id>' triggered on owner select change. Returns only properties owned by that user with no active contract.
+Package → services: Pure Alpine.js — no HTMX. x-data holds a packageServices map object. On package change, iterate checkboxes and set checked state.
+PAGE CO3  ·  /owner/contract/
+My Contract Detail (Owner view)
+Access:   OWNER  
+Overview
+Read-only contract detail page for the owner. Accessible from their dashboard contract card. Shows the complete terms of their management agreement as logged by staff.
+No editing available to the owner. If changes are needed, the owner contacts the company and staff updates the record via CO2.
+Layout & Components
+Component / Area
+Description
+Contract header
+Company name · Owner name · Contract status badge · Package name · Commission rate · Start date · End date (or 'Rolling').
+Services section
+List of all services included in this contract, each with a plain-language description of what the company handles on the owner's behalf.
+Commission section
+Teal highlighted box: 'Commission Rate: X%. Deducted from monthly rent collected before remittance.' Example calculation shown with real numbers from their contract.
+Properties section
+List of enrolled properties with unit counts and occupancy status. Read-only.
+Agreement document section
+If agreement_document uploaded: 'Download Signed Agreement' button. If not yet uploaded: amber note: 'The scanned agreement has not been uploaded yet. Contact the office if you need a copy.'
+T&C section
+T&C version as logged by staff (e.g. v1.2) · Date signed as logged by staff. Read-only text display.
+Contact section
+Company contact details for contract queries.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download signed agreement
+Click 'Download Signed Agreement'
+Django view /owner/contract/download/ verifies request.user == contract.owner before serving file. Content-Disposition: attachment.
+View settlements
+Click 'View My Settlements'
+Navigates to SE2.
+HTMX / Alpine.js Interactions
+File access control: File is never served via direct MEDIA_URL. The download view checks ownership before serving. Any attempt to access another owner's document returns 403.
+PAGE SE1  ·  /finance/settlements/
+Settlements List (Admin)
+Access:   ADMIN    MANAGER  
+Overview
+Monthly financial settlements for all active contracts. Generated by running the management command: python manage.py generate_settlements --month YYYY-MM.
+Admin reviews generated settlements here and marks them as REMITTED once the bank transfer to the owner has been made.
+Layout & Components
+Component / Area
+Description
+Page title row
+'Monthly Settlements' on left. 'Generate Settlements' button on right (Admin only — opens month picker modal).
+Filter bar
+Month picker (default: current month) · Status tabs: All · Pending · Remitted · Owner filter dropdown.
+Settlements DataTable
+Columns: Owner · Contract · Period · Properties · Gross Rent · Commission (PKR) · Maintenance Costs · Net Remittance · Status badge · Actions (View | Mark Remitted).
+Summary bar
+Total Gross Collected · Total Commission Earned by Company · Total Net Remitted to Owners · Pending Remittance count.
+Pending highlight
+PENDING rows have an amber left border. If period is from a previous month and still PENDING, left border turns red ('Overdue remittance').
+User Actions & Outcomes
+Action
+Trigger
+Result
+Generate settlements
+Click 'Generate Settlements'
+HTMX modal with month picker. On confirm, triggers the Django management command via a Django view (subprocess or Celery). Shows progress indicator. On completion, table refreshes with new PENDING rows.
+Mark as remitted
+Click 'Mark Remitted' in actions
+HTMX modal: reference number (bank transfer ref) · remittance date · Remittance Proof upload (FileField — upload bank transfer confirmation slip or screenshot). On save, status = REMITTED, remitted_at saved, remittance_proof saved if uploaded. Row updates inline.
+View remittance proof
+Click paperclip icon on REMITTED row
+Django view serves remittance_proof file. Admin only.
+View settlement detail
+Click owner name or 'View'
+HTMX side panel slides in with full breakdown: per-property rent collection, commission calculation, maintenance cost list, net calculation.
+HTMX / Alpine.js Interactions
+Mark remitted modal: hx-get='/finance/settlements/<id>/remit/' into modal. Modal uses multipart/form-data POST for file upload. hx-swap='outerHTML' hx-target='closest tr' updates the row. Paperclip icon appears in row if proof uploaded.
+Settlement detail panel: hx-get='/finance/settlements/<id>/detail/' hx-target='#side-panel' hx-swap='innerHTML'. Panel slides in via Alpine.js transition.
+PAGE SE2  ·  /owner/settlements/
+My Settlements (Owner)
+Access:   OWNER  
+Overview
+The owner's view of all their monthly settlements. Read-only. Shows the full financial story: gross rent, commission deducted, costs, net received.
+Layout & Components
+Component / Area
+Description
+Page title row
+'My Settlements' — no action buttons.
+Filter bar
+Year picker · Status tabs: All · Pending · Remitted.
+Settlements DataTable
+Columns: Period · Properties · Gross Rent · Commission Deducted · Maintenance Costs · Net Remittance · Status badge · Remittance Date · Proof · Download Statement PDF.
+Remittance proof column
+Download icon if admin uploaded remittance_proof when marking REMITTED. Clicking serves the bank transfer confirmation PDF or screenshot. Gives owner verifiable evidence the transfer was made. Gray dash if no proof uploaded.
+Annual summary row
+Pinned at top of table (or in a card above): This Year — Total Gross · Total Commission Paid · Total Received. Green for received, amber for pending.
+Settlement PDF
+Each settlement row has a 'Download PDF' button. Generates a formal monthly settlement statement: company letterhead, period, property breakdown, all deductions itemized, net amount, bank reference if remitted.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download settlement PDF
+Click 'Download PDF'
+GET /owner/settlements/<id>/pdf/ — Django/WeasyPrint renders the settlement statement.
+View period detail
+Click period in table
+HTMX modal expands the settlement: per-property breakdown with unit-level rent summary.
+HTMX / Alpine.js Interactions
+Settlement PDF: Same WeasyPrint pattern as payment receipt. Template uses system branding from settings. Shows commission rate applied, referencing the contract tc_version in the footer for auditability.
+PAGE SP1  ·  /reports/staff-performance/
+Staff Performance Report
+Access:   ADMIN    OWNER  
+Overview
+Phase 3 feature. Shows maintenance ticket resolution performance and tenant feedback ratings per staff member. Admin sees all staff system-wide. Owner sees only staff who worked on their properties.
+Data sources: MaintenanceTicket (resolution times) + MaintenanceFeedback (tenant ratings). Computed monthly.
+Layout & Components
+Component / Area
+Description
+Filter row
+Month picker · Property filter (Admin: all; Owner: own only) · Staff member filter.
+Staff performance table
+Columns: Staff Name · Tickets Assigned · Tickets Resolved · Avg Resolution Time (hours) · On-Time % (resolved within SLA by urgency) · Avg Tenant Rating (stars) · Feedback Count.
+SLA reference
+Below table: small reference card showing SLA targets by urgency: CRITICAL = 24hrs, HIGH = 48hrs, MEDIUM = 5 days, LOW = 14 days.
+Tenant feedback section
+Below the summary table: expandable list of all feedback comments for the selected period. Each row: ticket title, staff name, rating (stars), tenant comment, date.
+Rating display
+Star icons rendered in amber for filled, gray for empty. Average shown as number with one decimal (e.g. 4.2).
+User Actions & Outcomes
+Action
+Trigger
+Result
+Filter by staff
+Select from dropdown
+hx-get refetches table filtered to that staff member.
+Expand feedback
+Click staff row
+Alpine.js x-show reveals the individual feedback comments for that staff member inline.
+Export
+CSV / Print buttons
+DataTables export of the performance table.
+HTMX / Alpine.js Interactions
+Performance data: hx-get='/reports/staff-performance/data/?month=<m>&property=<p>' returns a pre-rendered table partial. Aggregates from MaintenanceFeedback JOIN MaintenanceTicket.
+11. Tenant Self-Service Portal
+The tenant portal lives at /tenant/ and uses a separate, simplified layout — no AdminLTE sidebar. Instead: a clean top navbar with the system logo, the tenant's name, and a logout link. The sidebar is replaced by a simple horizontal tab navigation. The design is intentionally lighter and more consumer-facing than the admin panel.
+All views in this section are filtered to request.user only. A Tenant can never access another tenant's data — querysets enforce this at the Django level, not just the UI.
+PAGE TP1  ·  /tenant/dashboard/
+Tenant Dashboard
+Access:   TENANT  
+Overview
+The tenant's landing page after login. Shows their current financial position and lease at a glance.
+Layout & Components
+Component / Area
+Description
+Welcome banner
+Light navy banner: 'Welcome back, [First Name].' Shows current date.
+Balance card (large, prominent)
+Large card centre-top. Shows Outstanding Balance in large type. Green if zero or credit, red if in debt. Sub-text: 'Your rent of PKR X is due on the Nth of each month.'
+Lease summary card
+Unit + Property + Location · Lease Start Date · Lease End Date (or 'Month-to-Month') · Monthly Rent · Deposit Paid status.
+Last Payment card
+Last payment date · Amount · Method · Receipt download link.
+Latest Invoice card
+Current month invoice: amount due · due date · status badge. 'View Details' link.
+Quick links row
+Three icon buttons: 'Payment History' · 'Submit Maintenance Request' · 'View Lease'.
+Recent maintenance panel
+Last 3 submitted tickets with status badges. 'View All' link.
+Pending Feedback card
+Shown only if there is at least one CLOSED ticket with no MaintenanceFeedback record. Amber card: 'You have N resolved maintenance request(s) awaiting your feedback. Your rating helps us improve our service.' 'Rate Now' button navigates to /tenant/maintenance/ with the relevant ticket highlighted.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download last receipt
+Click receipt link in Last Payment card
+Opens /tenant/receipts/<id>/ PDF in new tab.
+View all payments
+Click 'Payment History'
+Navigates to /tenant/payments/.
+Submit maintenance
+Click 'Submit Maintenance Request'
+HTMX modal opens ticket submission form.
+HTMX / Alpine.js Interactions
+Maintenance modal: hx-get='/tenant/maintenance/new/' loads a simple modal: title, description, urgency select. The unit is auto-filled from the tenant's active lease.
+PAGE TP2  ·  /tenant/payments/
+Tenant Payment History
+Access:   TENANT  
+Overview
+Chronological list of all invoices and payments for this tenant only.
+Layout & Components
+Component / Area
+Description
+Invoices section
+DataTable. Columns: Period · Invoice No. · Amount Due · Due Date · Status badge · Download Invoice PDF.
+Payments section
+DataTable. Columns: Date · Invoice Ref · Amount · Method · Receipt Download.
+Financial summary bar
+Total Paid (all time) · Current Outstanding Balance · Average Monthly Payment.
+User Actions & Outcomes
+Action
+Trigger
+Result
+Download invoice PDF
+Click PDF icon in invoices table
+Opens invoice PDF.
+Download receipt
+Click receipt icon in payments table
+Opens payment receipt PDF.
+PAGE TP3  ·  /tenant/maintenance/
+Tenant Maintenance Requests
+Access:   TENANT  
+Overview
+The tenant's view of all their submitted maintenance requests and current status.
+Layout & Components
+Component / Area
+Description
+New Request button
+Top right. Opens HTMX modal.
+Tickets table
+Columns: Title · Urgency badge · Status badge · Submitted Date · Last Updated · Assigned To (just first name for privacy) · Feedback (star rating if submitted, or 'Rate' button if ticket is CLOSED and no feedback yet).
+Ticket detail modal
+Clicking a row opens a read-only HTMX modal showing: full description, status timeline, cost (if resolved), resolution notes. If ticket is CLOSED and no feedback submitted: a feedback form is shown at the bottom of the modal.
+Feedback form (in modal)
+Star rating widget (1–5, click to select) + optional comment textarea + 'Submit Feedback' button. Submitting creates a MaintenanceFeedback record. The modal refreshes to show the submitted rating. The 'Rate' button in the table row changes to the star rating.
+Status explanation text
+Below the table: a key explaining each status (Open = awaiting assignment, In Progress = being worked on, etc.)
+User Actions & Outcomes
+Action
+Trigger
+Result
+Submit new request
+Click 'New Request'
+HTMX modal: title, description, urgency. Unit auto-filled from active lease. If property contract does not include maintenance service, show banner instead of form.
+View ticket detail
+Click row
+HTMX modal loads read-only detail view. If ticket CLOSED and no feedback: feedback form shown at bottom.
+Submit feedback
+Click star rating + 'Submit Feedback'
+HTMX post to /tenant/maintenance/<id>/feedback/. Creates MaintenanceFeedback record. Modal updates to show 'Thank you for your feedback.' Row in table updates to show star rating.
+HTMX / Alpine.js Interactions
+Submit ticket: hx-post='/tenant/maintenance/new/' on form submit. On success, hx-swap='afterbegin' hx-target='#ticket-table tbody' prepends new row.
+Submit feedback: hx-post='/tenant/maintenance/<id>/feedback/' from the feedback form inside the ticket detail modal. On success, HX-Trigger fires a feedback-submitted event. Alpine.js updates the star display in the modal and swaps the 'Rate' button in the parent table row to show the submitted rating via hx-swap='outerHTML' on the button element.
+12. Complete Page Inventory
+Every page in the system, its URL, accessible roles, and implementation phase.
+#
+Page Name
+URL
+Roles
+Phase
+A1
+Login
+/accounts/login/
+ALL
+Phase 1
+D1
+Admin/Manager Dashboard
+/dashboard/
+ADMIN, MANAGER
+Phase 1
+D2
+Owner Dashboard
+/owner/dashboard/
+OWNER
+Phase 1
+D3
+Staff Dashboard
+/staff/dashboard/
+STAFF
+Phase 1
+P1
+Properties List
+/properties/
+ADMIN, MANAGER
+Phase 1
+P2
+Property Detail — Units
+/properties/<id>/units/
+ADMIN, MANAGER
+Phase 1
+T1
+Tenants List
+/tenants/
+ADMIN, MANAGER
+Phase 1
+T2
+Add Tenant (full page)
+/tenants/add/
+ADMIN, MANAGER
+Phase 1
+T3
+Tenant Detail
+/tenants/<id>/
+ADMIN, MANAGER
+Phase 1
+F1
+Invoices List
+/finance/invoices/
+ADMIN, MANAGER
+Phase 1
+F2
+Record Payment (full page)
+/finance/payments/new/
+ADMIN, MANAGER, STAFF
+Phase 1
+F3
+Payments List
+/finance/payments/
+ADMIN, MANAGER
+Phase 1
+M1
+Maintenance Tickets List
+/maintenance/
+ADMIN, MANAGER, STAFF
+Phase 2
+M2
+Ticket Detail
+/maintenance/<id>/
+ADMIN, MANAGER, STAFF
+Phase 2
+F4
+Payment Receipt (PDF)
+/finance/payments/<id>/receipt/
+ADMIN, MANAGER, STAFF, TENANT
+Phase 2
+R1
+Monthly Payments Report
+/reports/monthly-payments/
+ADMIN, MANAGER, OWNER
+Phase 2
+R2
+Outstanding Balances Report
+/reports/balances/
+ADMIN, MANAGER, OWNER
+Phase 2
+AU1
+Audit Log
+/audit/
+ADMIN
+Phase 2
+US1
+User Management
+/accounts/users/
+ADMIN
+Phase 2
+SS1
+System Settings
+/settings/
+ADMIN
+Phase 2
+PO1
+Owner — My Properties
+/owner/properties/
+OWNER
+Phase 2
+CO1
+Contracts List
+/contracts/
+ADMIN
+Phase 2
+CO2
+Contract Create / Detail
+/contracts/new/ or /contracts/<id>/
+ADMIN
+Phase 2
+CO3
+My Contract Detail (Owner)
+/owner/contract/
+OWNER
+Phase 2
+SE1
+Settlements List (Admin)
+/finance/settlements/
+ADMIN, MANAGER
+Phase 2
+SE2
+My Settlements (Owner)
+/owner/settlements/
+OWNER
+Phase 2
+LR1
+Lease Renewal (modal flow on T3)
+/tenants/<id>/lease/renew/
+ADMIN, MANAGER
+Phase 3
+SP1
+Staff Performance Report
+/reports/staff-performance/
+ADMIN, OWNER
+Phase 3
+TP1
+Tenant Dashboard
+/tenant/dashboard/
+TENANT
+Phase 3
+TP2
+Tenant Payment History
+/tenant/payments/
+TENANT
+Phase 3
+TP3
+Tenant Maintenance Requests
+/tenant/maintenance/
+TENANT
+Phase 3
+Build all Phase 1 pages before writing any Phase 2 or 3 templates.
+Member 3 should have base.html + AdminLTE integrated before Members 1 and 2 need any templates.
+
+
+

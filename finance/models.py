@@ -67,6 +67,7 @@ class Payment(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.RESTRICT, related_name='recorded_payments'
     )
     date_paid      = models.DateField()
+    proof_document = models.FileField(upload_to='documents/payments/', blank=True, null=True)
     notes          = models.TextField(blank=True, null=True)
     created_at     = models.DateTimeField(auto_now_add=True)
     updated_at     = models.DateTimeField(auto_now=True, null=True)
@@ -79,3 +80,39 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment PKR {self.amount_paid} on {self.date_paid} for {self.invoice.invoice_number}"
+
+class MonthlySettlement(models.Model):
+    """
+    Computed financial outcome for an owner contract per billing cycle.
+    This is the financial truth for owner payouts.
+    """
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('REMITTED', 'Remitted'),
+    ]
+
+    contract = models.ForeignKey('contracts.OwnerContract', on_delete=models.RESTRICT, related_name='settlements')
+    property = models.ForeignKey('properties.Property', on_delete=models.RESTRICT, related_name='settlements')
+    period_month = models.DateField(help_text="First day of the settlement month")
+    
+    gross_rent_collected = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    commission_deducted = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    maintenance_costs = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Sum of resolved tickets within period")
+    net_remittance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='PENDING')
+    remittance_proof = models.FileField(upload_to='documents/settlements/', blank=True, null=True)
+    remitted_at = models.DateTimeField(blank=True, null=True)
+    
+    generated_at = models.DateTimeField(auto_now_add=True)
+    calculation_snapshot = models.JSONField(blank=True, null=True, help_text="Preserves historical truth of calculations")
+
+    class Meta:
+        unique_together = ('contract', 'property', 'period_month')
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['period_month']),
+        ]
+
+    def __str__(self):
+        return f"Settlement {self.period_month.strftime('%b %Y')} for {self.contract}"

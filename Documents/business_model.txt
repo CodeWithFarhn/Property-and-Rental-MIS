@@ -1,0 +1,353 @@
+Good—this is exactly the level where most systems either become solid or quietly flawed.
+
+I’m not going to just answer “yes/no”. I’ll tell you **what to choose and why**, and where you might be overengineering.
+
+---
+
+# 1. Can one owner have multiple contracts?
+
+### ✅ **Yes — but with constraints**
+
+If you say “no”, your system becomes unrealistic immediately.
+
+Real scenarios:
+
+* Owner has **different properties with different service levels**
+* Owner upgrades services later
+* Owner negotiates different commission rates over time
+
+---
+
+### 🔥 Correct Model
+
+An owner can have:
+
+* **Multiple contracts over time**
+* **Multiple active contracts simultaneously (rare but possible)**
+
+---
+
+### But here’s the important constraint:
+
+👉 A **single property must not belong to multiple active contracts at the same time**
+
+---
+
+### So your rule becomes:
+
+* Owner → many contracts
+* Contract → many properties
+* Property → only ONE active contract at a time
+
+---
+
+### Why this matters
+
+If you don’t enforce this:
+
+* Commission becomes ambiguous
+* Settlement becomes broken
+
+---
+
+# 2. Can different properties of the same owner have different services?
+
+### ✅ **Absolutely yes**
+
+If you don’t allow this, your system becomes rigid and unrealistic.
+
+Example:
+
+* Apartment → tenant management only
+* Commercial plaza → full service
+
+---
+
+### 🔥 Correct Model
+
+Services are linked to:
+
+> **Contract, NOT Owner**
+
+---
+
+### Why?
+
+Because:
+
+* Services define operational behavior
+* Behavior varies per property group
+
+---
+
+### Structure:
+
+* Contract → many services
+* Contract → many properties
+
+👉 Properties inherit services through contract
+
+---
+
+# 3. Should commission vary per contract?
+
+### ✅ **Yes — mandatory**
+
+If you fix commission globally:
+
+* You lose realism
+* You lose negotiation flexibility
+
+---
+
+### 🔥 Correct Model
+
+Commission stored in:
+
+> **Contract**
+
+---
+
+### Optional (if you want to be advanced later):
+
+* Allow per-property override (Phase 2)
+
+---
+
+# 4. Should a property exist without a contract?
+
+### ⚠️ This is a design decision—choose carefully
+
+---
+
+### Option A (Strict Model — More Realistic)
+
+❌ Property CANNOT exist without contract
+
+Meaning:
+
+* System only manages contracted properties
+
+---
+
+### Option B (Flexible Model — Better for your project)
+
+✅ Property CAN exist without contract
+
+But:
+
+* No financial operations allowed
+* No services applied
+
+---
+
+### 👉 My recommendation:
+
+Go with **Option B**
+
+Why:
+
+* Easier migration from Phase 1
+* More flexible
+* Safer design
+
+---
+
+# 5. Should contracts be time-bound?
+
+### ✅ YES (very important)
+
+Each contract must have:
+
+* start_date
+* end_date (nullable for ongoing)
+
+---
+
+### Why this matters:
+
+* Commission can change over time
+* Services can change
+* Legal correctness
+
+---
+
+👉 Without this, your system has **no history**
+
+---
+
+# 6. How should service selection work?
+
+### ❌ Don’t use ENUM or fixed package field
+
+### ✅ Use relational model:
+
+* Service table
+* ContractService (junction table)
+
+---
+
+### Why?
+
+Because:
+
+* You avoid hardcoding
+* You allow future expansion
+
+---
+
+# 7. When should settlement happen?
+
+### 🔥 This is a core design decision
+
+---
+
+### Option A (Event-based)
+
+Settlement happens when payment is made
+
+❌ BAD — leads to fragmentation
+
+---
+
+### Option B (Periodic — Correct)
+
+Settlement happens:
+
+> **Monthly (or defined billing cycle)**
+
+---
+
+### Flow:
+
+1. Collect payments during month
+2. End of month → compute totals
+3. Apply commission
+4. Generate settlement
+
+---
+
+👉 This mirrors real accounting
+
+---
+
+# 8. Where should financial truth live?
+
+### 🔥 Very important
+
+---
+
+### DO NOT:
+
+* Modify Payment table to store commission
+* Mix raw and processed data
+
+---
+
+### DO:
+
+* Keep **Payment = raw data**
+* Use **Settlement = computed financial outcome**
+
+---
+
+👉 Separation = clean system
+
+---
+
+# 9. Should services affect system behavior immediately?
+
+### ⚠️ Keep it simple (for now)
+
+---
+
+### Phase 1:
+
+* Store services
+* Minimal enforcement (optional checks)
+
+---
+
+### Later:
+
+* Services control:
+
+  * ticket creation
+  * workflows
+  * permissions
+
+---
+
+👉 Don’t overbuild logic yet
+
+---
+
+# 10. Should contracts store pricing logic or just values?
+
+### Your instinct might be:
+
+> “Let’s build dynamic pricing engine”
+
+❌ Don’t
+
+---
+
+### ✅ Store FINAL values:
+
+* commission_rate
+* fixed_fee (optional)
+
+---
+
+👉 Keep it simple and deterministic
+
+---
+
+# Final Recommended Model (Clean & Strong)
+
+### Relationships:
+
+* Owner → Contract (1:M)
+* Contract → Property (M:M via ContractProperty)
+* Contract → Service (M:M via ContractService)
+* Property → Lease → Rent → Payment (unchanged)
+* Contract → Settlement (1:M)
+
+---
+
+# The Most Important Rules (Do NOT violate these)
+
+1. A property has only ONE active contract at a time
+2. Payments are raw — never modified
+3. Settlement is the only financial truth for owners
+4. Services are linked to contracts, not owners
+5. Contracts are time-bound
+
+---
+
+# What I’d Challenge You On
+
+You’re leaning toward a **very flexible system**.
+
+That’s good—but dangerous.
+
+👉 Every flexibility you add:
+
+* increases schema complexity
+* increases bug surface
+
+---
+
+So ask yourself:
+
+> Do I need this flexibility **now**, or can it wait?
+
+---
+
+# Next Step
+
+Now you’re ready for:
+
+👉 **Exact database schema (tables, keys, constraints, normalization)**
+
+If you want, I’ll design it with you—but I’ll expect you to question every decision.

@@ -28,6 +28,9 @@ INSTALLED_APPS = [
     'leases',
     'finance',
     'dashboard',
+    'contracts',
+    'maintenance',
+    'audit',
 ]
 
 MIDDLEWARE = [
