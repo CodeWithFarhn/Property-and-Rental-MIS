@@ -93,6 +93,23 @@ document.body.addEventListener('showToast', function (evt) {
   }));
 });
 
+// ── HTMX: Reload Page Handlers ──────────────────────────────────────────────
+document.body.addEventListener('refreshPropertyList', function () {
+  window.location.reload();
+});
+
+document.body.addEventListener('refreshUnitList', function () {
+  window.location.reload();
+});
+
+document.body.addEventListener('refreshInvoiceList', function () {
+  window.location.reload();
+});
+
+document.body.addEventListener('closeModal', function () {
+  closeModal();
+});
+
 // ── Search Debounce Utility ──────────────────────────────────────────────────
 function debounceSearch(ms = 300) {
   return {

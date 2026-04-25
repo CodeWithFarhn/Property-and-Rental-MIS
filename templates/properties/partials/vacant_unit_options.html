@@ -1,9 +1,7 @@
+<option value="">— Select Unit —</option>
 {% for unit in units %}
 <option value="{{ unit.id }}"
-        data-rent="{{ unit.monthly_rent }}"
-        hx-get="{% url 'properties:unit_info' unit.id %}"
-        hx-target="#unit-info-box"
-        hx-trigger="click">
+        data-rent="{{ unit.monthly_rent }}">
   {{ unit.unit_number }} — {{ unit.get_unit_type_display }} (PKR {{ unit.monthly_rent|floatformat:0 }}/mo)
 </option>
 {% empty %}

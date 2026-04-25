@@ -39,36 +39,27 @@ def check_cnic_exists(cnic: str, exclude_id: int = None) -> bool:
 
 def calculate_outstanding_balance(tenant) -> Decimal:
     """
-    B = (P × M) − ΣR
-    P = monthly_rent from the active lease
-    M = number of complete months since lease start_date
-    ΣR = sum of all Payment.amount_paid linked to this tenant's invoices
-
-    This is ALWAYS the source of truth. account_balance is a cached copy.
+    B = ΣInvoices(amount_due) − ΣPayments(amount_paid)
+    The sum of all invoice amounts minus the sum of all payments made.
     """
-    from leases.models import Lease
     from django.db.models import Sum
+    from finance.models import Invoice, Payment
 
-    active_lease = Lease.objects.filter(tenant=tenant, is_active=True).first()
-    if not active_lease:
-        return Decimal('0.00')
+    total_invoiced = Invoice.objects.filter(lease__tenant=tenant).aggregate(
+        total=Sum('amount_due')
+    )['total'] or Decimal('0.00')
 
-    today = timezone.localdate()
-    start = active_lease.start_date
-    months = (today.year - start.year) * 12 + (today.month - start.month)
-    months = max(months, 0)  # Never negative
+    total_paid = Payment.objects.filter(invoice__lease__tenant=tenant).aggregate(
+        total=Sum('amount_paid')
+    )['total'] or Decimal('0.00')
 
-    P = active_lease.monthly_rent
-    M = Decimal(months)
+    balance = total_invoiced - total_paid
 
-    total_paid = (
-        tenant.leases
-        .filter(invoices__payments__isnull=False)
-        .aggregate(total=Sum('invoices__payments__amount_paid'))['total']
-        or Decimal('0.00')
-    )
+    # Update the cached field on the tenant
+    tenant.account_balance = balance
+    tenant.save(update_fields=['account_balance', 'updated_at'])
 
-    return (P * M) - total_paid
+    return balance
 
 
 # ── Atomic Operations ──────────────────────────────────────────────────────────

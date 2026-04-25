@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Settlements | Property & Rental MIS{% endblock %}
+
+{% block page_title %}Monthly Settlements{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">All Monthly Settlements</h3>
+            </div>
+            <div class="card-body">
+                <table id="settlementsTable" class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Period</th>
+                            <th>Contract / Owner</th>
+                            <th>Property</th>
+                            <th>Gross Rent</th>
+                            <th>Comm. Deducted</th>
+                            <th>Maintenance</th>
+                            <th>Net Remittance</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for st in settlements %}
+                        <tr>
+                            <td>{{ st.period_month|date:"M Y" }}</td>
+                            <td>{{ st.contract.owner.get_full_name|default:st.contract.owner.username }}</td>
+                            <td>{{ st.property.name }}</td>
+                            <td>${{ st.gross_rent_collected }}</td>
+                            <td>${{ st.commission_deducted }}</td>
+                            <td>${{ st.maintenance_costs }}</td>
+                            <td><strong>${{ st.net_remittance }}</strong></td>
+                            <td>
+                                {% if st.status == 'REMITTED' %}
+                                    <span class="badge badge-success">Remitted</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if st.status == 'PENDING' %}
+                                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#remitModal{{ st.id }}">
+                                    Remit
+                                </button>
+
+                                <!-- Modal -->
+                                <div class="modal fade" id="remitModal{{ st.id }}" tabindex="-1" role="dialog" aria-labelledby="remitModalLabel{{ st.id }}" aria-hidden="true">
+                                  <div class="modal-dialog" role="document">
+                                    <div class="modal-content">
+                                      <div class="modal-header">
+                                        <h5 class="modal-title" id="remitModalLabel{{ st.id }}">Remit Settlement</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                          <span aria-hidden="true">&times;</span>
+                                        </button>
+                                      </div>
+                                      <form method="post" action="{% url 'contracts:remit_settlement' st.id %}" enctype="multipart/form-data">
+                                          {% csrf_token %}
+                                          <div class="modal-body">
+                                              <p>Net Remittance Amount: <strong>${{ st.net_remittance }}</strong></p>
+                                              <div class="form-group">
+                                                  <label>Upload Remittance Proof</label>
+                                                  <input type="file" name="remittance_proof" class="form-control-file" required>
+                                              </div>
+                                          </div>
+                                          <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-primary">Mark Remitted</button>
+                                          </div>
+                                      </form>
+                                    </div>
+                                  </div>
+                                </div>
+                                {% elif st.remittance_proof %}
+                                    <a href="{{ st.remittance_proof.url }}" target="_blank" class="btn btn-info btn-sm">Proof</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        $('#settlementsTable').DataTable({
+            "paging": true,
+            "lengthChange": false,
+            "searching": true,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+        });
+    });
+</script>
+{% endblock %}

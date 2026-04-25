@@ -26,6 +26,13 @@
            class="btn {% if request.GET.status == 'PAID' %}btn-success{% else %}btn-outline-success{% endif %}"
            id="filter-paid">Paid</a>
       </div>
+      <!-- Bulk Generate Button -->
+      <button class="btn btn-outline-primary btn-sm"
+              hx-post="{% url 'finance:invoice_bulk_generate' %}"
+              hx-confirm="Are you sure you want to generate invoices for all active tenants for this month? (Duplicates will be skipped)."
+              id="bulk-gen-invoice-btn">
+        <i class="fas fa-cogs mr-1"></i> Bulk Generate Current Month
+      </button>
       <!-- Generate Invoice Button -->
       <button class="btn btn-primary btn-sm"
               hx-get="{% url 'finance:invoice_add' %}"
@@ -36,6 +43,38 @@
         <i class="fas fa-plus mr-1"></i> Generate Invoice
       </button>
     </div>
+  </div>
+
+  <div class="card-body border-bottom bg-light">
+    <form method="get" action="{% url 'finance:invoice_list' %}" class="form-row align-items-end" id="invoice-filter-form">
+      <input type="hidden" name="status" value="{{ current_filters.status|default:'' }}">
+      
+      <div class="form-group col-md-3 mb-0">
+        <label class="small font-weight-bold">Period Month</label>
+        <input type="month" name="period_month" class="form-control form-control-sm" value="{{ current_filters.period_month|default:'' }}">
+      </div>
+      
+      <div class="form-group col-md-3 mb-0">
+        <label class="small font-weight-bold">Property</label>
+        <select name="property" class="form-control form-control-sm">
+          <option value="">All Properties</option>
+          {% for prop in properties %}
+          <option value="{{ prop.id }}" {% if current_filters.property == prop.id|stringformat:"s" %}selected{% endif %}>{{ prop.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <div class="form-group col-md-4 mb-0">
+        <label class="small font-weight-bold">Search</label>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Invoice #, Tenant Name, CNIC..." value="{{ current_filters.q|default:'' }}">
+      </div>
+      
+      <div class="form-group col-md-2 mb-0">
+        <button type="submit" class="btn btn-secondary btn-sm btn-block">
+          <i class="fas fa-filter mr-1"></i> Filter
+        </button>
+      </div>
+    </form>
   </div>
 
   <div class="card-body p-0" id="invoice-list-container">

@@ -9,7 +9,6 @@
 
 {% block content %}
 <form method="post" enctype="multipart/form-data"
-      hx-post="{% url 'tenants:add' %}" hx-target="this" hx-swap="outerHTML"
       x-data="proratedAmount(0)">
   {% csrf_token %}
   {% if form.non_field_errors %}
@@ -54,12 +53,7 @@
           <!-- Unit dropdown (HTMX-populated) -->
           <div class="form-group">
             <label class="font-weight-bold" style="font-size:13px;">Unit <span class="text-danger">*</span></label>
-            <select name="unit" id="id_unit" class="form-control"
-                    hx-get="" hx-target="#unit-info-box" hx-trigger="change"
-                    hx-include="[name=unit]">
-              <option value="">— Select Property First —</option>
-              <div id="unit-options"></div>
-            </select>
+            {{ form.unit }}
             {% if form.unit.errors %}<small class="text-danger">{{ form.unit.errors.0 }}</small>{% endif %}
             <div id="unit-info-box" class="mt-1"></div>
           </div>

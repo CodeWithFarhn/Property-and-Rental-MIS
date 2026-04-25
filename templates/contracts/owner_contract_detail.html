@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Contract #{{ contract.id }} | Property & Rental MIS{% endblock %}
+
+{% block page_title %}Contract #{{ contract.id }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card card-primary card-outline">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-file-contract mr-1"></i>
+                    Contract Summary
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-user mr-1"></i> Owner</strong>
+                        <p class="text-muted">{{ contract.owner.get_full_name|default:contract.owner.username }}</p>
+                    </div>
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-box mr-1"></i> Package</strong>
+                        <p class="text-muted">{{ contract.package_name|default:"Standard" }}</p>
+                    </div>
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-percentage mr-1"></i> Commission Rate</strong>
+                        <p class="text-muted">{{ contract.commission_rate }}%</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-calendar-alt mr-1"></i> Start Date</strong>
+                        <p class="text-muted">{{ contract.start_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-calendar-check mr-1"></i> End Date</strong>
+                        <p class="text-muted">{{ contract.end_date|date:"M d, Y"|default:"Rolling" }}</p>
+                    </div>
+                    <div class="col-sm-4">
+                        <strong><i class="fas fa-info-circle mr-1"></i> Status</strong>
+                        <p class="text-muted">
+                            {% if contract.status == 'ACTIVE' %}
+                                <span class="badge badge-success">Active</span>
+                            {% elif contract.status == 'DRAFT' %}
+                                <span class="badge badge-warning">Draft</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Terminated</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                {% if contract.agreement_document %}
+                <hr>
+                <div class="row">
+                    <div class="col-sm-12">
+                        <strong><i class="fas fa-file-pdf mr-1"></i> Document</strong>
+                        <p><a href="{{ contract.agreement_document.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2"><i class="fas fa-download"></i> Download Agreement</a></p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{% url 'contracts:contract_list' %}" class="btn btn-default">Back</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

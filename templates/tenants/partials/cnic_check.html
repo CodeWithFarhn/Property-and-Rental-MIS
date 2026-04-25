@@ -1,4 +1,6 @@
-{% if cnic %}
+{% if error and raw_cnic %}
+  <span class="text-danger small"><i class="fas fa-exclamation-triangle mr-1"></i>{{ error }}</span>
+{% elif cnic %}
   {% if exists %}
   <span class="text-danger small"><i class="fas fa-times-circle mr-1"></i>A tenant with CNIC <strong>{{ cnic|slice:":5" }}-{{ cnic|slice:"5:12" }}-{{ cnic|slice:"12:" }}</strong> is already registered.</span>
   {% else %}

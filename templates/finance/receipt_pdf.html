@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Receipt #{{ payment.id }}</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #333; line-height: 1.5; }
+        .header { text-align: center; border-bottom: 2px solid #0056b3; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { margin: 0; color: #0056b3; font-size: 28px; }
+        .header p { margin: 5px 0 0 0; color: #666; }
+        .receipt-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+        .receipt-info div { width: 48%; }
+        .receipt-info h3 { margin-top: 0; color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f9fa; color: #333; font-weight: bold; }
+        .totals { width: 50%; float: right; }
+        .totals table th { text-align: right; background-color: transparent; border: none; }
+        .totals table td { text-align: right; border: none; font-weight: bold; font-size: 18px; color: #28a745; }
+        .footer { clear: both; text-align: center; margin-top: 50px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Property & Rental MIS</h1>
+        <p>Official Payment Receipt</p>
+    </div>
+
+    <div class="receipt-info" style="width:100%">
+        <div style="float:left; width: 48%">
+            <h3>Received From:</h3>
+            <p>
+                <strong>{{ payment.invoice.lease.tenant.full_name }}</strong><br>
+                Unit: {{ payment.invoice.lease.unit.unit_number }} - {{ payment.invoice.lease.unit.property.name }}<br>
+                Phone: {{ payment.invoice.lease.tenant.phone_number }}
+            </p>
+        </div>
+        <div style="float:right; width: 48%">
+            <h3>Receipt Details:</h3>
+            <p>
+                <strong>Receipt No:</strong> #RCPT-{{ payment.id|stringformat:"06d" }}<br>
+                <strong>Date Paid:</strong> {{ payment.date_paid|date:"F d, Y" }}<br>
+                <strong>Payment Method:</strong> {{ payment.get_payment_method_display }}<br>
+                {% if payment.reference_code %}<strong>Reference:</strong> {{ payment.reference_code }}{% endif %}
+            </p>
+        </div>
+        <div style="clear:both;"></div>
+    </div>
+
+    <h3>Payment Application:</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Invoice No</th>
+                <th>Billing Period</th>
+                <th>Amount Due</th>
+                <th>Amount Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ payment.invoice.invoice_number }}</td>
+                <td>{{ payment.invoice.period_month|date:"F Y" }}</td>
+                <td>PKR {{ payment.invoice.amount_due|floatformat:2 }}</td>
+                <td>PKR {{ payment.amount_paid|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="totals">
+        <table>
+            <tr>
+                <th>Total Paid:</th>
+                <td>PKR {{ payment.amount_paid|floatformat:2 }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for your business.</p>
+        <p>This is a computer-generated receipt and requires no signature.</p>
+    </div>
+</body>
+</html>

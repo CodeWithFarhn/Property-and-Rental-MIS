@@ -39,9 +39,9 @@ class PropertyCreateView(View):
         if form.is_valid():
             form.save()
             response = HttpResponse(status=204)
-            response['HX-Trigger'] = '{"showToast": {"message": "Property added successfully.", "type": "success"}, "refreshPropertyList": true}'
+            response['HX-Trigger'] = '{"showToast": {"message": "Property added successfully.", "type": "success"}, "refreshPropertyList": true, "closeModal": true}'
             return response
-        return render(request, 'properties/partials/property_form_modal.html', {'form': form}, status=422)
+        return render(request, 'properties/partials/property_form_modal.html', {'form': form})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -58,9 +58,9 @@ class PropertyUpdateView(View):
         if form.is_valid():
             form.save()
             response = HttpResponse(status=204)
-            response['HX-Trigger'] = '{"showToast": {"message": "Property updated.", "type": "success"}, "refreshPropertyList": true}'
+            response['HX-Trigger'] = '{"showToast": {"message": "Property updated.", "type": "success"}, "refreshPropertyList": true, "closeModal": true}'
             return response
-        return render(request, 'properties/partials/property_form_modal.html', {'form': form, 'property': prop}, status=422)
+        return render(request, 'properties/partials/property_form_modal.html', {'form': form, 'property': prop})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -91,9 +91,9 @@ class UnitCreateView(View):
             unit.property = prop
             unit.save()
             response = HttpResponse(status=204)
-            response['HX-Trigger'] = '{"showToast": {"message": "Unit added.", "type": "success"}, "refreshUnitList": true}'
+            response['HX-Trigger'] = '{"showToast": {"message": "Unit added.", "type": "success"}, "refreshUnitList": true, "closeModal": true}'
             return response
-        return render(request, 'properties/partials/unit_form_modal.html', {'form': form, 'property': prop}, status=422)
+        return render(request, 'properties/partials/unit_form_modal.html', {'form': form, 'property': prop})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -110,9 +110,9 @@ class UnitUpdateView(View):
         if form.is_valid():
             form.save()
             response = HttpResponse(status=204)
-            response['HX-Trigger'] = '{"showToast": {"message": "Unit updated.", "type": "success"}, "refreshUnitList": true}'
+            response['HX-Trigger'] = '{"showToast": {"message": "Unit updated.", "type": "success"}, "refreshUnitList": true, "closeModal": true}'
             return response
-        return render(request, 'properties/partials/unit_form_modal.html', {'form': form, 'unit': unit, 'property': unit.property}, status=422)
+        return render(request, 'properties/partials/unit_form_modal.html', {'form': form, 'unit': unit, 'property': unit.property})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -125,7 +125,12 @@ class VacantUnitsView(View):
 
 @method_decorator(login_required, name='dispatch')
 class UnitInfoView(View):
-    def get(self, request, pk):
+    def get(self, request, pk=None):
+        if not pk:
+            pk = request.GET.get('unit')
+        if not pk:
+            return HttpResponse('')
+            
         info = services.get_unit_info(pk)
         if not info:
             return HttpResponse('')

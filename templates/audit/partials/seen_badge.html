@@ -1,0 +1,5 @@
+{% if log.seen %}
+    <span class="badge badge-success"><i class="fas fa-check"></i> Seen</span>
+{% else %}
+    <button class="btn btn-xs btn-warning" hx-post="{% url 'audit:htmx_mark_seen' log.id %}" hx-swap="outerHTML">Mark Seen</button>
+{% endif %}

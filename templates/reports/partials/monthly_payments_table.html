@@ -1,0 +1,34 @@
+<table class="table table-bordered table-striped">
+    <thead>
+        <tr>
+            <th>Date Paid</th>
+            <th>Receipt #</th>
+            <th>Tenant</th>
+            <th>Property/Unit</th>
+            <th>Amount Paid</th>
+            <th>Method</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.date_paid|date:"M d, Y" }}</td>
+            <td>#RCPT-{{ p.id|stringformat:"06d" }}</td>
+            <td>{{ p.invoice.lease.tenant.full_name }}</td>
+            <td>{{ p.invoice.lease.unit.property.name }} - Unit {{ p.invoice.lease.unit.unit_number }}</td>
+            <td>PKR {{ p.amount_paid|floatformat:2 }}</td>
+            <td>{{ p.get_payment_method_display }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="6" class="text-center">No payments received for this month.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot>
+        <tr>
+            <th colspan="4" class="text-right">Total Collected:</th>
+            <th colspan="2" class="text-success">PKR {{ total_collected|floatformat:2 }}</th>
+        </tr>
+    </tfoot>
+</table>

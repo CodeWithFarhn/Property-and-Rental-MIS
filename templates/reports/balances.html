@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Outstanding Balances | Property & Rental MIS{% endblock %}
+
+{% block page_title %}Outstanding Balances Report{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card card-outline card-danger">
+            <div class="card-header">
+                <h3 class="card-title">Tenants with Overdue Balances</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-striped" id="balancesTable">
+                    <thead>
+                        <tr>
+                            <th>Tenant Name</th>
+                            <th>CNIC</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Outstanding Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in tenant_balances %}
+                        <tr>
+                            <td>{{ item.tenant.full_name }}</td>
+                            <td>{{ item.tenant.cnic }}</td>
+                            <td>{{ item.tenant.phone_number }}</td>
+                            <td>{{ item.tenant.user.email }}</td>
+                            <td class="text-danger font-weight-bold">PKR {{ item.balance|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-success">No outstanding balances. All tenants are up to date!</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4" class="text-right">Total Outstanding Accounts Receivable:</th>
+                            <th class="text-danger">PKR {{ total_outstanding|floatformat:2 }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        $('#balancesTable').DataTable({
+            "paging": true,
+            "lengthChange": false,
+            "searching": true,
+            "ordering": true,
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+        });
+    });
+</script>
+{% endblock %}

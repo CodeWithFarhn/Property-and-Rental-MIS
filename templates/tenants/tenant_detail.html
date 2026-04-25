@@ -64,7 +64,7 @@
             PKR {{ outstanding|floatformat:2 }}
           </div>
           <div class="text-muted" style="font-size:10px;">
-            Formula: B = (P × M) − ΣR
+            Formula: B = ΣInvoices − ΣPaid
           </div>
         </div>
 
@@ -119,10 +119,13 @@
     <div class="card card-outline card-primary shadow-sm mb-3">
       <div class="card-header d-flex align-items-center justify-content-between">
         <h5 class="card-title text-navy mb-0"><i class="fas fa-file-invoice mr-2"></i>Invoice History</h5>
-        <a href="{% url 'finance:invoice_add' %}?lease={{ active_lease.pk|default:'' }}"
-           class="btn btn-outline-primary btn-sm" id="gen-invoice-btn">
+        <button class="btn btn-outline-primary btn-sm" id="gen-invoice-btn"
+                hx-get="{% url 'finance:invoice_add' %}?lease={{ active_lease.pk|default:'' }}"
+                hx-target="#modal-body"
+                @click="openModal()"
+                x-data="modalComponent()">
           <i class="fas fa-plus mr-1"></i> Generate Invoice
-        </a>
+        </button>
       </div>
       <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">

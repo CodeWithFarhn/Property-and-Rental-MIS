@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.contrib import messages
+from decimal import Decimal
 
 from accounts.decorators import role_required
 from tenants.models import Tenant
@@ -21,13 +22,30 @@ class TenantListView(View):
     def get(self, request):
         status = request.GET.get('status', 'ACTIVE')
         q      = request.GET.get('q', '').strip()
-        tenants = Tenant.objects.filter(status=status).prefetch_related('leases__unit__property')
+        from django.db.models.functions import Coalesce
+        from django.db.models import Sum, OuterRef, Subquery
+        from finance.models import Invoice, Payment
+
+        total_invoiced = Invoice.objects.filter(
+            lease__tenant=OuterRef('pk')
+        ).values('lease__tenant').annotate(
+            t=Sum('amount_due')
+        ).values('t')
+
+        total_paid = Payment.objects.filter(
+            invoice__lease__tenant=OuterRef('pk')
+        ).values('invoice__lease__tenant').annotate(
+            t=Sum('amount_paid')
+        ).values('t')
+
+        tenants = Tenant.objects.filter(status=status).prefetch_related('leases__unit__property').annotate(
+            outstanding=Coalesce(Subquery(total_invoiced), Decimal('0.00')) - Coalesce(Subquery(total_paid), Decimal('0.00'))
+        )
+
         if q:
             tenants = tenants.filter(
                 Q(full_name__icontains=q) | Q(cnic__icontains=q) | Q(phone__icontains=q)
             )
-        for t in tenants:
-            t.outstanding = calculate_outstanding_balance(t)
         if request.headers.get('HX-Request'):
             return render(request, 'tenants/partials/tenant_table.html', {'tenants': tenants, 'status': status})
         return render(request, 'tenants/tenant_list.html', {'tenants': tenants, 'status': status})
@@ -120,12 +138,15 @@ class TenantDeactivateView(View):
 class CnicCheckView(View):
     def get(self, request):
         cnic = request.GET.get('cnic', '').strip()
-        try:
-            cleaned = services.clean_cnic(cnic)
-            exists = services.check_cnic_exists(cleaned)
-        except ValueError:
-            exists = False
-            cleaned = None
+        error = None
+        cleaned = None
+        exists = False
+        if cnic:
+            try:
+                cleaned = services.clean_cnic(cnic)
+                exists = services.check_cnic_exists(cleaned)
+            except ValueError as e:
+                error = str(e)
         return render(request, 'tenants/partials/cnic_check.html', {
-            'exists': exists, 'cnic': cleaned,
+            'exists': exists, 'cnic': cleaned, 'error': error, 'raw_cnic': cnic
         })

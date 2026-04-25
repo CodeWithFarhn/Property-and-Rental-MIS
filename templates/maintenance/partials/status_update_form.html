@@ -1,0 +1,40 @@
+<form hx-post="{% url 'maintenance:htmx_update_status' ticket.id %}" 
+      hx-target="#status-badge-{{ ticket.id }}"
+      hx-swap="innerHTML"
+      enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <div class="form-group">
+        <label for="{{ form.status.id_for_label }}">Status</label>
+        {{ form.status }}
+    </div>
+    
+    <div class="form-group" id="cost-group-{{ ticket.id }}" {% if ticket.status not in 'RESOLVED,CLOSED' %}style="display: none;"{% endif %}>
+        <label for="{{ form.cost.id_for_label }}">Final Cost ($)</label>
+        {{ form.cost }}
+        <small class="form-text text-muted">Enter the total cost of repair if applicable.</small>
+    </div>
+    
+    <div class="form-group" id="doc-group-{{ ticket.id }}" {% if ticket.status not in 'RESOLVED,CLOSED' %}style="display: none;"{% endif %}>
+        <label for="{{ form.cost_document.id_for_label }}">Receipt/Invoice Document</label>
+        {{ form.cost_document }}
+    </div>
+    
+    <div class="form-group">
+        <label for="{{ form.notes.id_for_label }}">Notes</label>
+        {{ form.notes }}
+        <small class="form-text text-muted">{{ form.notes.help_text }}</small>
+    </div>
+    
+    <button type="submit" class="btn btn-info btn-block">Update Status</button>
+</form>
+
+<script>
+    // Ensure form logic handles showing/hiding cost fields
+    document.getElementById('{{ form.status.id_for_label }}').addEventListener('change', function(e) {
+        var status = e.target.value;
+        var display = (status === 'RESOLVED' || status === 'CLOSED') ? 'block' : 'none';
+        document.getElementById('cost-group-{{ ticket.id }}').style.display = display;
+        document.getElementById('doc-group-{{ ticket.id }}').style.display = display;
+    });
+</script>

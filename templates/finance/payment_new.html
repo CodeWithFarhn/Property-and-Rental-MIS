@@ -29,6 +29,7 @@
             <div class="position-relative">
               <input type="text" class="form-control" id="tenant-search-input"
                      placeholder="Type 3+ characters to search…"
+                     value="{{ prefill_tenant.full_name|default:'' }}"
                      hx-get="{% url 'finance:tenant_search' %}"
                      hx-trigger="keyup changed delay:300ms"
                      hx-target="#tenant-search-results"
@@ -40,7 +41,7 @@
                    style="z-index:999;max-height:200px;overflow-y:auto;top:100%;left:0;display:none;">
               </div>
             </div>
-            <input type="hidden" id="selected-tenant-id" name="tenant_id" />
+            <input type="hidden" id="selected-tenant-id" name="tenant_id" value="{{ prefill_tenant.pk|default:'' }}" />
           </div>
 
           <!-- Invoice Select -->
@@ -130,11 +131,15 @@
   document.body.addEventListener('click', function(e) {
     var item = e.target.closest('[data-tenant-id]');
     if (item) {
-      document.getElementById('selected-tenant-id').value = item.dataset.tenantId;
-      document.getElementById('tenant-search-input').value = item.dataset.tenantName;
-      document.getElementById('tenant-search-results').style.display = 'none';
-      // Load summary panel
-      htmx.ajax('GET', '{% url "finance:tenant_summary" %}?tenant=' + item.dataset.tenantId, {target: '#tenant-summary-panel'});
+      window.location.href = '?tenant=' + item.dataset.tenantId;
+    }
+  });
+
+  // Pre-load the summary panel if a tenant was prefilled
+  document.addEventListener("DOMContentLoaded", function() {
+    var prefillTenantId = document.getElementById('selected-tenant-id').value;
+    if (prefillTenantId) {
+      htmx.ajax('GET', '{% url "finance:tenant_summary" %}?tenant=' + prefillTenantId, {target: '#tenant-summary-panel'});
     }
   });
 </script>

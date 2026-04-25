@@ -13,5 +13,6 @@ urlpatterns = [
     path('units/<int:pk>/edit/',          login_required(views.UnitUpdateView.as_view()),        name='unit_edit'),
     # HTMX endpoints
     path('units/vacant/',                 login_required(views.VacantUnitsView.as_view()),       name='vacant_units'),
+    path('units/info/',                   login_required(views.UnitInfoView.as_view()),          name='unit_info_qs'),
     path('units/<int:pk>/info/',          login_required(views.UnitInfoView.as_view()),          name='unit_info'),
 ]

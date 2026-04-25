@@ -14,6 +14,9 @@ urlpatterns = [
     path('properties/',include('properties.urls',  namespace='properties')),
     path('tenants/',   include('tenants.urls',     namespace='tenants')),
     path('finance/',   include('finance.urls',     namespace='finance')),
+    path('maintenance/', include('maintenance.urls', namespace='maintenance')),
+    path('contracts/', include('contracts.urls', namespace='contracts')),
+    path('audit/', include('audit.urls', namespace='audit')),
 ]
 
 # Serve media files in development

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}New Ticket | Property & Rental MIS{% endblock %}
+
+{% block page_title %}Report Maintenance Issue{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Ticket Details</h3>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="card-body">
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Please correct the errors below.
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-group">
+                        <label for="{{ form.unit.id_for_label }}">Unit</label>
+                        {{ form.unit }}
+                        {{ form.unit.errors }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.title.id_for_label }}">Title</label>
+                        {{ form.title }}
+                        {{ form.title.errors }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.description.id_for_label }}">Description</label>
+                        {{ form.description }}
+                        {{ form.description.errors }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.urgency.id_for_label }}">Urgency</label>
+                                {{ form.urgency }}
+                                {{ form.urgency.errors }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.assigned_to.id_for_label }}">Assign To (Optional)</label>
+                                {{ form.assigned_to }}
+                                {{ form.assigned_to.errors }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <button type="submit" class="btn btn-primary">Submit Ticket</button>
+                    <a href="{% url 'maintenance:ticket_list' %}" class="btn btn-default float-right">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        $('.select2').select2({
+            theme: 'bootstrap4'
+        });
+    });
+</script>
+{% endblock %}

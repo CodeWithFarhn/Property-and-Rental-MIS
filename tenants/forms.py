@@ -22,7 +22,7 @@ class TenantAdmissionForm(forms.Form):
     phone             = forms.CharField(max_length=20, widget=forms.TextInput(attrs={**FIELD_CLASSES, 'placeholder': '+92...'}))
     cnic              = forms.CharField(max_length=15, widget=forms.TextInput(attrs={
         **FIELD_CLASSES, 'placeholder': 'XXXXX-XXXXXXX-X or 13 digits',
-        'hx-get': '/tenants/check-cnic/', 'hx-trigger': 'blur',
+        'hx-get': '/tenants/check-cnic/', 'hx-trigger': 'keyup changed delay:500ms, blur',
         'hx-target': '#cnic-feedback', 'hx-include': '[name=cnic]',
     }))
     profession        = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={**FIELD_CLASSES}))
@@ -35,25 +35,35 @@ class TenantAdmissionForm(forms.Form):
         empty_label='— Select Property —',
         widget=forms.Select(attrs={
             **FIELD_CLASSES,
-            'hx-get': '/properties/units/vacant/', 'hx-target': '#unit-options',
+            'hx-get': '/properties/units/vacant/', 'hx-target': '#id_unit',
+            'hx-swap': 'innerHTML',
             'hx-trigger': 'change', 'hx-include': '[name=property]',
         })
     )
     unit = forms.ModelChoiceField(
-        queryset=Unit.objects.filter(status='VACANT'),
+        queryset=Unit.objects.none(),
         empty_label='— Select Unit —',
         widget=forms.Select(attrs={
             **FIELD_CLASSES,
-            'hx-get': '', 'hx-target': '#unit-info-box',
-            'hx-trigger': 'change',
+            'hx-get': '/properties/units/info/', 'hx-target': '#unit-info-box',
+            'hx-trigger': 'change', 'hx-include': '[name=unit]',
         })
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'property' in self.data:
+            try:
+                property_id = int(self.data.get('property'))
+                self.fields['unit'].queryset = Unit.objects.filter(property_id=property_id, status='VACANT')
+            except (ValueError, TypeError):
+                pass
     start_date     = forms.DateField(widget=forms.DateInput(attrs={**FIELD_CLASSES, 'type': 'date'}))
     end_date       = forms.DateField(required=False, widget=forms.DateInput(attrs={**FIELD_CLASSES, 'type': 'date'}))
-    month_to_month = forms.BooleanField(required=False, initial=False)
+    month_to_month = forms.BooleanField(required=False, initial=False, widget=forms.CheckboxInput(attrs={'class': 'custom-control-input'}))
     monthly_rent   = forms.DecimalField(max_digits=12, decimal_places=2, widget=forms.NumberInput(attrs={**FIELD_CLASSES, 'step': '0.01'}))
     deposit_amount = forms.DecimalField(max_digits=12, decimal_places=2, initial=0, widget=forms.NumberInput(attrs={**FIELD_CLASSES, 'step': '0.01'}))
-    deposit_paid   = forms.BooleanField(required=False)
+    deposit_paid   = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={'class': 'custom-control-input'}))
     notes          = forms.CharField(required=False, widget=forms.Textarea(attrs={**FIELD_CLASSES, 'rows': 2}))
 
     def clean_cnic(self):

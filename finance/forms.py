@@ -55,6 +55,11 @@ class PaymentForm(forms.Form):
                                      widget=forms.DateInput(attrs={**FIELD_CLASSES, 'type': 'date'}))
     notes          = forms.CharField(required=False, widget=forms.Textarea(attrs={**FIELD_CLASSES, 'rows': 2}))
 
+    def __init__(self, *args, tenant_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if tenant_id:
+            self.fields['invoice'].queryset = self.fields['invoice'].queryset.filter(lease__tenant_id=tenant_id)
+
     def clean_amount_paid(self):
         amount = self.cleaned_data.get('amount_paid')
         if amount is not None and amount <= 0:

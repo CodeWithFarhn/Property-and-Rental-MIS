@@ -8,6 +8,11 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.contrib import messages
 from django.utils import timezone
+from django.template.loader import render_to_string
+try:
+    import weasyprint
+except (ImportError, OSError):
+    weasyprint = None
 
 from accounts.decorators import role_required
 from finance.models import Invoice, Payment
@@ -22,21 +27,66 @@ from leases.models import Lease
 @method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class InvoiceListView(View):
     def get(self, request):
+        from properties.models import Property
+
+        # Default ordering is newest month first, then newest created
+        invoices = Invoice.objects.select_related('lease__tenant', 'lease__unit__property').order_by('-period_month', '-created_at')
+
+        # Filters
         status = request.GET.get('status', '')
-        invoices = Invoice.objects.select_related('lease__tenant', 'lease__unit__property').order_by('-created_at')
+        period_month = request.GET.get('period_month', '')
+        property_id = request.GET.get('property', '')
+        q = request.GET.get('q', '').strip()
+
         if status:
             invoices = invoices.filter(status=status)
+        if period_month:
+            invoices = invoices.filter(period_month=period_month + "-01")
+        if property_id:
+            invoices = invoices.filter(lease__unit__property_id=property_id)
+        if q:
+            invoices = invoices.filter(
+                Q(invoice_number__icontains=q) |
+                Q(lease__tenant__full_name__icontains=q) |
+                Q(lease__tenant__cnic__icontains=q)
+            )
+
         today = timezone.localdate()
-        if request.headers.get('HX-Request'):
-            return render(request, 'finance/partials/invoice_list_table.html', {'invoices': invoices, 'today': today})
-        return render(request, 'finance/invoice_list.html', {'invoices': invoices, 'today': today})
+        context = {
+            'invoices': invoices, 
+            'today': today,
+            'properties': Property.objects.filter(status='ACTIVE'),
+            'current_filters': request.GET
+        }
+
+        if request.headers.get('HX-Request') and not request.headers.get('HX-Target') == 'modal-body':
+            return render(request, 'finance/partials/invoice_list_table.html', context)
+        return render(request, 'finance/invoice_list.html', context)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
+class BulkInvoiceGenerateView(View):
+    def post(self, request):
+        today = timezone.localdate()
+        # Always generate for the 1st of the current month
+        current_month = today.replace(day=1)
+        
+        count = services.bulk_generate_invoices(current_month)
+        
+        response = HttpResponse(status=204)
+        response['HX-Trigger'] = f'{{"showToast": {{"message": "Successfully generated {count} invoices for {current_month.strftime("%B %Y")}.", "type": "success"}}, "refreshInvoiceList": true}}'
+        return response
 
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(role_required('ADMIN', 'MANAGER'), name='dispatch')
 class InvoiceCreateModalView(View):
     def get(self, request):
-        form = InvoiceForm(user=request.user)
+        initial = {}
+        if 'lease' in request.GET:
+            initial['lease'] = request.GET.get('lease')
+        form = InvoiceForm(user=request.user, initial=initial)
         return render(request, 'finance/partials/invoice_form_modal.html', {'form': form})
 
     def post(self, request):
@@ -49,22 +99,33 @@ class InvoiceCreateModalView(View):
                     notes=form.cleaned_data.get('notes', ''),
                 )
                 response = HttpResponse(status=204)
-                response['HX-Trigger'] = f'{{"showToast": {{"message": "Invoice {invoice.invoice_number} created.", "type": "success"}}, "refreshInvoiceList": true}}'
+                response['HX-Trigger'] = f'{{"showToast": {{"message": "Invoice {invoice.invoice_number} created.", "type": "success"}}, "refreshInvoiceList": true, "closeModal": true}}'
                 return response
             except ValueError as e:
                 form.add_error(None, str(e))
-        return render(request, 'finance/partials/invoice_form_modal.html', {'form': form}, status=422)
+        return render(request, 'finance/partials/invoice_form_modal.html', {'form': form})
 
 
 @method_decorator(login_required, name='dispatch')
 @method_decorator(role_required('ADMIN', 'MANAGER', 'STAFF'), name='dispatch')
 class PaymentCreateView(View):
     def get(self, request):
-        form = PaymentForm()
-        return render(request, 'finance/payment_new.html', {'form': form})
+        initial = {}
+        tenant_id = request.GET.get('tenant')
+        tenant = None
+        if tenant_id:
+            tenant = get_object_or_404(Tenant, pk=tenant_id)
+            first_invoice = Invoice.objects.filter(lease__tenant=tenant, status__in=['UNPAID', 'PARTIAL']).order_by('due_date').first()
+            if first_invoice:
+                initial['invoice'] = first_invoice.id
+                initial['amount_paid'] = first_invoice.remaining_balance
+
+        form = PaymentForm(tenant_id=tenant_id, initial=initial)
+        return render(request, 'finance/payment_new.html', {'form': form, 'prefill_tenant': tenant})
 
     def post(self, request):
-        form = PaymentForm(request.POST)
+        tenant_id = request.POST.get('tenant_id')
+        form = PaymentForm(request.POST, tenant_id=tenant_id)
         if form.is_valid():
             try:
                 payment = services.record_payment(
@@ -80,7 +141,10 @@ class PaymentCreateView(View):
                 return redirect('finance:payment_list')
             except Exception as e:
                 form.add_error(None, str(e))
-        return render(request, 'finance/payment_new.html', {'form': form})
+        
+        # If form is invalid, we still want to show the prefill tenant summary
+        tenant = get_object_or_404(Tenant, pk=tenant_id) if tenant_id else None
+        return render(request, 'finance/payment_new.html', {'form': form, 'prefill_tenant': tenant})
 
 
 @method_decorator(login_required, name='dispatch')
@@ -122,3 +186,24 @@ class TenantSummaryView(View):
             'outstanding': outstanding,
             'unpaid_invoices': unpaid_invoices,
         })
+
+@method_decorator(login_required, name='dispatch')
+class PaymentReceiptPDFView(View):
+    def get(self, request, pk):
+        payment = get_object_or_404(Payment, pk=pk)
+        
+        # Only allow admin/manager or the tenant themselves to view
+        if request.user.role not in ['ADMIN', 'MANAGER']:
+            if payment.invoice.lease.tenant.user != request.user:
+                return HttpResponse('Unauthorized', status=401)
+
+        html_string = render_to_string('finance/receipt_pdf.html', {'payment': payment})
+        
+        if weasyprint:
+            pdf_file = weasyprint.HTML(string=html_string).write_pdf()
+            response = HttpResponse(pdf_file, content_type='application/pdf')
+            response['Content-Disposition'] = f'inline; filename="receipt_{payment.id}.pdf"'
+            return response
+        else:
+            # Fallback to returning raw HTML if GTK+3 is not installed on Windows
+            return HttpResponse(html_string)

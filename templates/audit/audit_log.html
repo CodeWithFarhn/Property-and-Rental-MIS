@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}System Audit Log | Property & Rental MIS{% endblock %}
+
+{% block page_title %}System Audit Log{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Immutable Activity Log</h3>
+            </div>
+            <div class="card-body">
+                <table id="auditTable" class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Actor</th>
+                            <th>Action</th>
+                            <th>Entity Type</th>
+                            <th>Entity ID</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.timestamp|date:"Y-m-d H:i:s" }}</td>
+                            <td>{{ log.actor.get_full_name|default:log.actor.username|default:"System" }}</td>
+                            <td><span class="badge badge-info">{{ log.action }}</span></td>
+                            <td>{{ log.entity_type }}</td>
+                            <td>{{ log.entity_id }}</td>
+                            <td>{{ log.description }}</td>
+                            <td>
+                                {% include 'audit/partials/seen_badge.html' %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(function () {
+        $('#auditTable').DataTable({
+            "paging": true,
+            "lengthChange": true,
+            "searching": true,
+            "ordering": true,
+            "order": [[ 0, "desc" ]],
+            "info": true,
+            "autoWidth": false,
+            "responsive": true,
+        });
+    });
+</script>
+{% endblock %}

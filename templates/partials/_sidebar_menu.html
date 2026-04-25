@@ -43,20 +43,50 @@
     </ul>
   </li>
 
+  <li class="nav-item">
+    <a href="{% url 'maintenance:ticket_list' %}" class="nav-link {% if request.resolver_match.app_name == 'maintenance' %}active{% endif %}">
+      <i class="nav-icon fas fa-tools"></i><p>Maintenance</p>
+    </a>
+  </li>
+
+  <li class="nav-item has-treeview {% if request.resolver_match.app_name == 'contracts' %}menu-open{% endif %}">
+    <a href="#" class="nav-link {% if request.resolver_match.app_name == 'contracts' %}active{% endif %}">
+      <i class="nav-icon fas fa-file-contract"></i>
+      <p>Contracts <i class="right fas fa-angle-left"></i></p>
+    </a>
+    <ul class="nav nav-treeview">
+      <li class="nav-item">
+        <a href="{% url 'contracts:contract_list' %}" class="nav-link">
+          <i class="far fa-circle nav-icon"></i><p>Owner Contracts</p>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="{% url 'contracts:settlement_list' %}" class="nav-link">
+          <i class="far fa-circle nav-icon"></i><p>Settlements</p>
+        </a>
+      </li>
+    </ul>
+  </li>
+
   {% if role == 'ADMIN' %}
   <li class="nav-item">
-    <a href="#" class="nav-link text-muted">
-      <i class="nav-icon fas fa-list-alt"></i><p>Audit Log <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    <a href="{% url 'audit:log_list' %}" class="nav-link {% if request.resolver_match.app_name == 'audit' %}active{% endif %}">
+      <i class="nav-icon fas fa-list-alt"></i><p>Audit Log</p>
     </a>
   </li>
   <li class="nav-item">
-    <a href="#" class="nav-link text-muted">
-      <i class="nav-icon fas fa-users-cog"></i><p>Users <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    <a href="{% url 'accounts:user_list' %}" class="nav-link {% if request.resolver_match.app_name == 'accounts' and request.resolver_match.url_name == 'user_list' %}active{% endif %}">
+      <i class="nav-icon fas fa-users-cog"></i><p>Users</p>
     </a>
   </li>
   <li class="nav-item">
-    <a href="#" class="nav-link text-muted">
-      <i class="nav-icon fas fa-cog"></i><p>Settings <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    <a href="{% url 'accounts:settings' %}" class="nav-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
+      <i class="nav-icon fas fa-cog"></i><p>Settings</p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="/admin/" class="nav-link" target="_blank">
+      <i class="nav-icon fas fa-database"></i><p>Django Admin <i class="fas fa-external-link-alt" style="font-size: 0.7em; margin-left: 5px;"></i></p>
     </a>
   </li>
   {% endif %}
@@ -82,8 +112,13 @@
     </a>
   </li>
   <li class="nav-item">
-    <a href="#" class="nav-link text-muted">
-      <i class="nav-icon fas fa-building"></i><p>My Properties <span class="badge badge-secondary ml-1">Phase 2</span></p>
+    <a href="{% url 'contracts:contract_list' %}" class="nav-link {% if request.resolver_match.app_name == 'contracts' %}active{% endif %}">
+      <i class="nav-icon fas fa-building"></i><p>My Properties</p>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a href="{% url 'contracts:owner_settlement_list' %}" class="nav-link {% if request.resolver_match.url_name == 'owner_settlement_list' %}active{% endif %}">
+      <i class="nav-icon fas fa-receipt"></i><p>My Settlements</p>
     </a>
   </li>
 
